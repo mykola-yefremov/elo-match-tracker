@@ -1,87 +1,143 @@
 # Elo Match Tracker
 
-This repository contains "Elo Match Tracker" — a Java Spring Boot service that manages players and 1v1 matches and calculates Elo rating changes. It includes REST endpoints, Thymeleaf views for basic UI pages, Flyway database migrations, and Gradle tasks for unit/integration/end-to-end suites.
+Elo Match Tracker is a Java 17 Spring Boot application for tracking 1v1 matches and keeping player ratings consistent with the Elo ranking system.
 
-**Description**
-- **Purpose:** Track player registrations and matches, compute Elo rating updates, and expose a simple web UI + API for integration.
-- **Key features:** REST API, server-side rendered templates (`elo-ranking.html`, `match-history.html`), Flyway migrations, OpenAPI / Swagger UI, health and metrics endpoints.
+The project is intentionally small, but built like a production service: database migrations, layered tests, Testcontainers integration checks, container image support, health endpoints, and a 70% JaCoCo coverage gate.
 
-**Tech Stack**
-- **Language & Framework:** Java 17, Spring Boot 3
-- **Build:** Gradle (wrapper included)
-- **DB:** PostgreSQL (Flyway migrations in `src/main/resources/db/migration`)
-- **API docs:** springdoc / OpenAPI (Swagger UI)
+## Highlights
 
-**Prerequisites**
-- **Java 17** (Adoptium or other JDK)
-- **Gradle wrapper** (included: use `./gradlew` on Unix or `.` `\`gradlew.bat` on Windows)
-- **Docker** (optional — used for local Postgres or building images)
+- Server-rendered UI for player rankings and match history
+- Elo rating calculation with match cancellation and rating rollback
+- PostgreSQL persistence with Flyway migrations
+- Integration tests backed by Testcontainers
+- Gradle quality gate with JaCoCo coverage verification
+- Docker Compose setup for local development
+- Production profile with restricted actuator and disabled Swagger UI
 
-**Quick Start (Windows PowerShell)**
-- Run a local Postgres (docker-compose):
+## Tech Stack
 
-```powershell
+- Java 17
+- Spring Boot 3
+- Spring MVC and Thymeleaf
+- Spring Data JPA
+- PostgreSQL
+- Flyway
+- Gradle
+- JUnit 5, Mockito, AssertJ, Testcontainers
+- Jib for container image builds
+
+## Project Structure
+
+```text
+src/main/java/com/emt
+├── configuration   # MVC exception handling and OpenAPI configuration
+├── controller      # UI endpoints
+├── entity          # JPA entities
+├── mapper          # entity/DTO mapping
+├── model           # requests, responses, exceptions
+├── repository      # Spring Data repositories
+└── service         # business logic and Elo rating updates
+```
+
+## Getting Started
+
+Start PostgreSQL:
+
+```bash
 docker compose up -d
 ```
 
-- Start the app using the Gradle wrapper:
+Run the application:
 
-```powershell
-.\gradlew.bat bootRun
+```bash
+./gradlew bootRun
 ```
 
-- Build artifact:
+Open the UI:
 
-```powershell
-.\gradlew.bat clean build
+```text
+http://localhost:8080/players
 ```
 
-- Run tests (unit/integration/end2end):
+Swagger UI is available locally at:
 
-```powershell
-.\gradlew.bat test            # runs default test task (JUnit Platform)
-.\gradlew.bat integration     # run integration suite
-.\gradlew.bat end2end         # run end-to-end suite (will build docker image via jib)
+```text
+http://localhost:8080/swagger-ui.html
 ```
 
-**Docker / Image**
-- Local Docker image build via Jib (configured in `build.gradle`):
+## Configuration
 
-```powershell
-.\gradlew.bat jibDockerBuild
+The application reads database settings from environment variables with local defaults:
+
+```text
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=elt_database
+DB_USERNAME=elt_user
+DB_PASSWORD=elt_pass
+DB_SCHEMA=app_elo_match_tracker
 ```
 
-- The `jib.to.image` is assembled using values from `gradle.properties` (`repository` and `serviceName`).
+For production, run with:
 
-**Configuration**
-- Main config file: `src/main/resources/application.yml`.
-- DB connection is configured by properties at the top of `application.yml` (`dbHost`, `dbPort`, `dbName`, `dbUsername`, `dbPassword`). Adjust there or provide overrides via environment variables or OS-specific property files.
-- Flyway migrations live in `src/main/resources/db/migration` and are applied on app startup.
+```bash
+SPRING_PROFILES_ACTIVE=prod ./gradlew bootRun
+```
 
-**API / UI**
-- OpenAPI / Swagger UI is enabled (springdoc). The Swagger UI path is configured in `application.yml`.
-- Thymeleaf templates are in `src/main/resources/templates` (`elo-ranking.html`, `match-history.html`).
-- Actuator endpoints (health, info, metrics) are exposed; management port is configured (`management.server.port: 9090`).
+The production profile disables Swagger UI and keeps actuator exposure limited to health and info endpoints.
 
-**Project Structure (high level)**
-- `src/main/java/com/emt`: main application packages
-	- `controller` — REST controllers and UI controllers
-	- `service` — business logic (Elo calculation, match handling)
-	- `repository` — JPA repositories
-	- `entity` / `model` — domain objects and DTOs
-- `src/main/resources` — configuration, templates, and DB migrations
-- `src/test` — unit, integration, end-to-end test suites
+## Tests
 
-**Developer Notes & Suggestions**
-- Add a `CONTRIBUTING.md` describing code style, commit/message guidelines, and how to run tests locally.
-- Add CI badges (GitHub Actions, GitLab CI or similar) to README once CI workflows are available.
-- Consider adding an example `.env.example` or `application-local.yml` to make local overrides explicit.
-- If you plan to publish an image, update `gradle.properties` with a real repository and consider using a CI job to build & push images.
+Run unit tests:
 
-**Running in production / Docker**
-- Configure DB credentials securely (secrets manager / environment variables). Do not commit secrets.
-- Use an orchestrator (Kubernetes) or a proper service (container registry) for production images.
+```bash
+./gradlew unit
+```
 
-**License & Contact**
-- No license specified. Add a `LICENSE` file if you intend to make this open source.
-- Questions / help: open an issue or contact the repository owner.
+Run integration tests:
+
+```bash
+./gradlew integration
+```
+
+Run the quality gate:
+
+```bash
+./gradlew check
+```
+
+The quality gate verifies unit tests and enforces at least 70% JaCoCo instruction coverage.
+
+## Database
+
+Flyway migrations live in:
+
+```text
+src/main/resources/db/migration
+```
+
+Current migrations create player and match tables, store Elo rating deltas for match cancellation, and add indexes for match history queries.
+
+## Container Image
+
+Build a local Docker image with Jib:
+
+```bash
+./gradlew jibDockerBuild
+```
+
+The image name is assembled from `repository` and `serviceName` in `gradle.properties`.
+
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security](SECURITY.md)
+- [Support](SUPPORT.md)
+
+## Roadmap
+
+- Add a separate REST API layer for external clients
+- Add player search and pagination
+- Add match notes and optional game modes
+- Add authentication for administrative actions

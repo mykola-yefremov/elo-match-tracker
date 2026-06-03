@@ -1,6 +1,5 @@
 package com.emt.controller;
 
-import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -13,7 +12,6 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 
 @RequiredArgsConstructor
 public class PlayerControllerIT extends ITBase {
@@ -38,21 +36,12 @@ public class PlayerControllerIT extends ITBase {
   }
 
   @Test
-  void exceptionHandling_badRequestBody_expectMethodArgumentNotValidException() throws Exception {
+  void createPlayer_withBlankNickname_expectValidationFlashMessage() throws Exception {
     mockMvc
-        .perform(
-            post("/players/register")
-                .content(
-                    """
-                                    {
-                                      "nickname": null
-                                    }
-                                    """)
-                .contentType(APPLICATION_JSON))
+        .perform(post("/players/register").param("nickname", ""))
         .andExpectAll(
-            status().isBadRequest(),
-            jsonPath("$.type").value(MethodArgumentNotValidException.class.getSimpleName()),
-            jsonPath("$.status").value(400),
-            jsonPath("$.detail.nickname").value("Nickname should not be null."));
+            status().is3xxRedirection(),
+            redirectedUrl("/players"),
+            flash().attributeExists("errors"));
   }
 }

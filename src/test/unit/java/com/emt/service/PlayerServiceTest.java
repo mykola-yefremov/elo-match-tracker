@@ -8,11 +8,14 @@ import static org.mockito.Mockito.verify;
 import com.emt.entity.Player;
 import com.emt.mapper.PlayerMapper;
 import com.emt.model.exception.PlayerAlreadyExistsException;
+import com.emt.model.exception.PlayerNotFoundException;
 import com.emt.model.request.CreatePlayerRequest;
 import com.emt.model.response.PlayerResponse;
 import com.emt.repository.PlayerRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -60,5 +63,33 @@ class PlayerServiceTest {
     assertThatThrownBy(() -> playerService.createPlayer(request))
         .isInstanceOf(PlayerAlreadyExistsException.class)
         .hasMessageContaining("Player with nickname " + NICKNAME + " already exists.");
+  }
+
+  @Test
+  void getAllPlayers_WhenPlayersExist_ShouldReturnPlayersSortedByRatingDescending() {
+    Instant registeredAt = Instant.now();
+    Player strongerPlayer = new Player(2L, "strongerPlayer", new BigDecimal("1400"), registeredAt);
+    Player weakerPlayer = new Player(1L, "weakerPlayer", new BigDecimal("1200"), registeredAt);
+    PlayerResponse strongerResponse =
+        new PlayerResponse(2L, "strongerPlayer", new BigDecimal("1400"), registeredAt);
+    PlayerResponse weakerResponse =
+        new PlayerResponse(1L, "weakerPlayer", new BigDecimal("1200"), registeredAt);
+
+    given(playerRepository.findAll()).willReturn(List.of(weakerPlayer, strongerPlayer));
+    given(playerMapper.mapToResponse(strongerPlayer)).willReturn(strongerResponse);
+    given(playerMapper.mapToResponse(weakerPlayer)).willReturn(weakerResponse);
+
+    List<PlayerResponse> players = playerService.getAllPlayers();
+
+    assertThat(players).containsExactly(strongerResponse, weakerResponse);
+  }
+
+  @Test
+  void getPlayerById_WhenPlayerDoesNotExist_ShouldThrowException() {
+    given(playerRepository.findById(404L)).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> playerService.getPlayerById(404L))
+        .isInstanceOf(PlayerNotFoundException.class)
+        .hasMessageContaining("Player with id 404 not found");
   }
 }

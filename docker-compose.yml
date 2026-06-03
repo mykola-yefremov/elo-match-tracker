@@ -1,9 +1,8 @@
-# temporary solution, while k8s is not configured
 services:
   postgres:
     container_name: postgres_container_emt
     hostname: postgres_container_emt
-    image: postgres:alpine3.17
+    image: postgres:15-alpine
     restart: always
     ports:
       - '5432:5432'
@@ -14,6 +13,11 @@ services:
       PGDATA: /data
     volumes:
       - db-postgres:/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U elt_user -d elt_database" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   db-postgres: { }

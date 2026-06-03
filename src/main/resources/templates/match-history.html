@@ -1,47 +1,71 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
+    <link rel="stylesheet" th:href="@{/styles/styles.css}">
     <title>Match History</title>
 </head>
 <body>
-<nav class="header-nav">
-    <ul class="header-list">
-        <li class="header-item">
-            <a href="/players" class="header-link header-link-active">Main</a>
-        </li>
-    </ul>
-</nav>
+<header class="page-header">
+    <nav class="header-nav">
+        <a class="brand" href="/players">Elo Match Tracker</a>
+        <ul class="header-list">
+            <li class="header-item">
+                <a href="/players" class="header-link">Rankings</a>
+            </li>
+        </ul>
+    </nav>
+</header>
 
-<h1>Match History</h1>
-<table>
-    <thead>
-    <tr>
-        <th>Date</th>
-        <th>Winner</th>
-        <th>Loser</th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr th:each="match : ${matches}">
-        <td th:text="${match.createdAt != null ? #dates.format(match.createdAt, 'yyyy-MM-dd') : 'N/A'}">Date</td>
-        <td>
-            <span th:text="${match.winnerName}">Winner</span>
-            <br/>
-            <span th:text="${match.winnerRatingChange()}"></span>
-        </td>
-        <td>
-            <span th:text="${match.loserName}">Loser</span>
-            <br/>
-            <span th:text="${-match.winnerRatingChange()}"></span>
-        </td>
-        <td>
-            <form th:action="@{/matches/cancel}" method="post">
-                <input type="hidden" name="matchId" th:value="${match.matchId}"/>
-                <button type="submit">Cancel Match</button>
-            </form>
-        </td>
-    </tr>
-    </tbody>
-</table>
+<main class="page-shell">
+    <section class="hero">
+        <p class="eyebrow">Audit trail</p>
+        <h1>Match history</h1>
+        <p class="hero-copy">Review reported matches and safely cancel entries when a result was recorded by mistake.</p>
+    </section>
+
+    <div class="alert alert-error" th:if="${error}">
+        <p th:text="${error}">Error occurred</p>
+    </div>
+
+    <div class="alert alert-success" th:if="${message}">
+        <p th:text="${message}">Action completed</p>
+    </div>
+
+    <section class="panel">
+        <div class="section-title">
+            <h2>Reported matches</h2>
+            <span th:text="${#lists.size(matches)} + ' matches'">0 matches</span>
+        </div>
+        <table>
+            <thead>
+            <tr>
+                <th>Date</th>
+                <th>Winner</th>
+                <th>Loser</th>
+                <th>Action</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="match : ${matches}">
+                <td th:text="${match.createdAt != null ? #temporals.format(match.createdAt, 'yyyy-MM-dd') : 'N/A'}">Date</td>
+                <td>
+                    <span th:text="${match.winnerName}">Winner</span>
+                    <span class="rating-change positive" th:text="'+' + ${match.winnerRatingChange()}">+15.00</span>
+                </td>
+                <td>
+                    <span th:text="${match.loserName}">Loser</span>
+                    <span class="rating-change negative" th:text="${-match.winnerRatingChange()}">-15.00</span>
+                </td>
+                <td>
+                    <form th:action="@{/matches/cancel}" method="post">
+                        <input type="hidden" name="matchId" th:value="${match.matchId}"/>
+                        <button class="button-secondary" type="submit">Cancel</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+</main>
 </body>
 </html>

@@ -13,12 +13,12 @@ import com.emt.model.exception.MatchNotFoundException;
 import com.emt.model.request.CreateMatchRequest;
 import com.emt.model.response.MatchResponse;
 import com.emt.repository.MatchRepository;
-import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -29,10 +29,12 @@ public class MatchService {
   private final MatchMapper matchMapper;
   private final PlayerService playerService;
 
+  @Transactional(readOnly = true)
   public List<MatchResponse> getAllMatches() {
-    return matchRepository.findAll().stream().map(matchMapper::mapToResponse).toList();
+    return matchRepository.findAllWithPlayers().stream().map(matchMapper::mapToResponse).toList();
   }
 
+  @Transactional
   public MatchResponse createMatch(CreateMatchRequest request) {
     if (request.winnerId().equals(request.loserId())) {
       throw new IdenticalPlayersException("A match cannot be created with identical players.");

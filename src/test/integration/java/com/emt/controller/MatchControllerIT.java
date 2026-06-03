@@ -53,7 +53,7 @@ public class MatchControllerIT extends ITBase {
 
   @Test
   @SuppressWarnings("PMD.AvoidDuplicateLiterals")
-  void createMatch_withIdenticalPlayers_expectIdenticalPlayersException() throws Exception {
+  void createMatch_withIdenticalPlayers_expectErrorFlashMessage() throws Exception {
     PlayerResponse player =
         playerService.createPlayer(
             CreatePlayerRequest.builder().nickname("duplicatePlayer").build());
@@ -65,10 +65,13 @@ public class MatchControllerIT extends ITBase {
             post("/matches/report")
                 .param("winnerId", String.valueOf(player.playerId()))
                 .param("loserId", String.valueOf(player.playerId())))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.type").value("IdenticalPlayersException"))
-        .andExpect(jsonPath("$.status").value(409))
-        .andExpect(jsonPath("$.detail").value("A match cannot be created with identical players."));
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl("/players"))
+        .andExpect(
+            flash()
+                .attribute(
+                    "error",
+                    "Match creation failed: A match cannot be created with identical players."));
   }
 
   @Test

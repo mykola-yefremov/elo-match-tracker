@@ -18,8 +18,22 @@ jacoco {
     toolVersion = "0.8.12"
 }
 
+def coverageExclusions = [
+        '**/Entrypoint.class',
+        '**/configuration/**',
+        '**/entity/**',
+        '**/model/request/**',
+        '**/model/response/**'
+]
+
 repositories {
     mavenCentral()
+}
+
+dependencyManagement {
+    imports {
+        mavenBom 'org.testcontainers:testcontainers-bom:1.21.0'
+    }
 }
 
 dependencies {
@@ -67,9 +81,9 @@ testing {
                 implementation 'org.springframework.boot:spring-boot-starter-web'
                 implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 
-                implementation 'org.testcontainers:postgresql:1.19.0'
-                implementation 'org.testcontainers:mockserver:1.19.0'
-                implementation 'org.testcontainers:junit-jupiter:1.19.0'
+                implementation 'org.testcontainers:postgresql:1.21.0'
+                implementation 'org.testcontainers:mockserver:1.21.0'
+                implementation 'org.testcontainers:junit-jupiter:1.21.0'
 
                 implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.0'
 
@@ -84,7 +98,7 @@ testing {
 
                 implementation 'org.springframework.boot:spring-boot-starter-test'
 
-                implementation 'org.testcontainers:junit-jupiter:1.19.0'
+                implementation 'org.testcontainers:junit-jupiter:1.21.0'
 
                 implementation "org.projectlombok:lombok:1.18.32"
                 annotationProcessor "org.projectlombok:lombok:1.18.32"
@@ -95,15 +109,35 @@ testing {
 
 test {
     useJUnitPlatform()
-    finalizedBy jacocoTestReport
 }
 
 jacocoTestReport {
-    dependsOn test
+    dependsOn unit
+    dependsOn integration
+    executionData(fileTree(layout.buildDirectory).include("jacoco/*.exec"))
+    classDirectories.setFrom(files(classDirectories.files.collect {
+        fileTree(dir: it, exclude: coverageExclusions)
+    }))
     reports {
         xml.required.set(true)
         html.required.set(true)
         html.outputLocation.set(layout.buildDirectory.dir("jacocoHtml"))
+    }
+}
+
+jacocoTestCoverageVerification {
+    dependsOn unit
+    dependsOn integration
+    executionData(fileTree(layout.buildDirectory).include("jacoco/*.exec"))
+    classDirectories.setFrom(files(classDirectories.files.collect {
+        fileTree(dir: it, exclude: coverageExclusions)
+    }))
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.70
+            }
+        }
     }
 }
 
@@ -113,13 +147,35 @@ configurations {
     }
 }
 
+tasks.named('unit') {
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
 tasks.named('integration') {
+    useJUnitPlatform()
+    configureDockerHostForTestcontainers(delegate)
     finalizedBy jacocoTestReport
 }
 
 tasks.named('end2end') {
+    useJUnitPlatform()
+    configureDockerHostForTestcontainers(delegate)
     dependsOn jibDockerBuild
     finalizedBy jacocoTestReport
+}
+
+tasks.named('check') {
+    dependsOn unit
+    dependsOn integration
+    dependsOn jacocoTestCoverageVerification
+}
+
+void configureDockerHostForTestcontainers(Test task) {
+    def dockerDesktopSocket = file("${System.getProperty('user.home')}/.docker/run/docker.sock")
+    if (!System.getenv('DOCKER_HOST') && dockerDesktopSocket.exists()) {
+        task.environment 'DOCKER_HOST', "unix://${dockerDesktopSocket.absolutePath}"
+    }
 }
 
 jib {

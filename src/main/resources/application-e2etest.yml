@@ -4,3 +4,9 @@ dbName: test_db
 dbUsername: test_user
 dbPassword: test_password
 dbSchema: schema_v1_end2end
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

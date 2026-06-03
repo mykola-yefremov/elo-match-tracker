@@ -15,6 +15,16 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
       """
                   SELECT m
                   FROM Match m
+                  JOIN FETCH m.winner
+                  JOIN FETCH m.loser
+                  ORDER BY m.createdAt DESC
+                  """)
+  List<Match> findAllWithPlayers();
+
+  @Query(
+      """
+                  SELECT m
+                  FROM Match m
                   WHERE m.createdAt > :createdAt
                     AND (m.winner.playerId IN (:winnerId, :loserId)
                          OR m.loser.playerId IN (:winnerId, :loserId))
