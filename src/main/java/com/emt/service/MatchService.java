@@ -31,19 +31,23 @@ public class MatchService {
 
   @Transactional(readOnly = true)
   public List<MatchResponse> getAllMatches() {
-    return mapMatches(matchRepository.findAllWithPlayers());
+    return getMatchHistory(null, null);
   }
 
   @Transactional(readOnly = true)
   public List<MatchResponse> getMatchHistory(Long playerId, Long opponentId) {
+    return mapMatches(findMatchesForHistory(playerId, opponentId));
+  }
+
+  private List<Match> findMatchesForHistory(Long playerId, Long opponentId) {
     if (playerId == null && opponentId == null) {
-      return mapMatches(matchRepository.findAllWithPlayers());
+      return matchRepository.findAllWithPlayers();
     }
     if (playerId == null || opponentId == null || playerId.equals(opponentId)) {
       Long selectedPlayerId = playerId == null ? opponentId : playerId;
-      return mapMatches(matchRepository.findMatchesByPlayer(selectedPlayerId));
+      return matchRepository.findMatchesByPlayer(selectedPlayerId);
     }
-    return mapMatches(matchRepository.findMatchesBetweenPlayers(playerId, opponentId));
+    return matchRepository.findMatchesBetweenPlayers(playerId, opponentId);
   }
 
   @Transactional

@@ -3,6 +3,7 @@ package com.emt.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -68,7 +69,7 @@ class MatchServiceTest {
 
     assertThat(actualResponses).containsExactly(response);
     verify(matchRepository).findMatchesByPlayer(1L);
-    verify(matchRepository, never()).findMatchesBetweenPlayers(1L, null);
+    verify(matchRepository, never()).findMatchesBetweenPlayers(any(), any());
   }
 
   @Test
@@ -99,7 +100,7 @@ class MatchServiceTest {
 
     assertThat(actualResponses).containsExactly(response);
     verify(matchRepository).findMatchesByPlayer(1L);
-    verify(matchRepository, never()).findMatchesBetweenPlayers(1L, 1L);
+    verify(matchRepository, never()).findMatchesBetweenPlayers(any(), any());
   }
 
   @Test

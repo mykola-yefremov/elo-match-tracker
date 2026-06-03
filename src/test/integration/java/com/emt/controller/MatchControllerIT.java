@@ -1,6 +1,7 @@
 package com.emt.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -64,6 +65,7 @@ public class MatchControllerIT extends ITBase {
             .andExpect(status().isOk())
             .andExpect(view().name(MATCH_HISTORY_VIEW))
             .andExpect(model().attribute(SELECTED_PLAYER_ID_ATTRIBUTE, alice.playerId()))
+            .andExpect(model().attribute(SELECTED_OPPONENT_ID_ATTRIBUTE, nullValue()))
             .andExpect(model().attributeExists("players"))
             .andReturn();
 
