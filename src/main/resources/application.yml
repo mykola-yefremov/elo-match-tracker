@@ -6,6 +6,10 @@ dbPassword: ${DB_PASSWORD:elt_pass}
 dbApplicationName: ${spring.application.name}
 dbSchema: ${DB_SCHEMA:app_elo_match_tracker}
 
+audit:
+  actor-header: ${AUDIT_ACTOR_HEADER:X-Actor}
+  fallback-actor: ${AUDIT_FALLBACK_ACTOR:system}
+
 spring:
   application:
     name: elo_match_tracker
