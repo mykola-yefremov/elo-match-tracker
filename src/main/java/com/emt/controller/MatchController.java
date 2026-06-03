@@ -2,7 +2,9 @@ package com.emt.controller;
 
 import com.emt.model.request.CreateMatchRequest;
 import com.emt.model.response.MatchResponse;
+import com.emt.model.response.PlayerResponse;
 import com.emt.service.MatchService;
+import com.emt.service.PlayerService;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -17,11 +19,20 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class MatchController {
 
   private final MatchService matchService;
+  private final PlayerService playerService;
 
   @GetMapping
-  public String getAllMatches(Model model) {
-    List<MatchResponse> matches = matchService.getAllMatches();
+  public String getAllMatches(
+      @RequestParam(required = false) Long playerId,
+      @RequestParam(required = false) Long opponentId,
+      Model model) {
+    List<MatchResponse> matches = matchService.getMatchHistory(playerId, opponentId);
+    List<PlayerResponse> players = playerService.getAllPlayers();
+
     model.addAttribute("matches", matches);
+    model.addAttribute("players", players);
+    model.addAttribute("selectedPlayerId", playerId);
+    model.addAttribute("selectedOpponentId", opponentId);
     return "match-history";
   }
 
