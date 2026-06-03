@@ -9,6 +9,7 @@ The project is intentionally small, but built like a production service: databas
 - Server-rendered UI for player rankings and match history
 - Elo rating calculation with match cancellation, rating rollback, and match history filters
 - JSONB audit revisions for player and match mutations
+- Configurable request blocking by restricted header-value pairs
 - PostgreSQL persistence with Flyway migrations
 - Integration tests backed by Testcontainers
 - Gradle quality gate with JaCoCo coverage verification
@@ -80,7 +81,21 @@ DB_PASSWORD=elt_pass
 DB_SCHEMA=app_elo_match_tracker
 AUDIT_ACTOR_HEADER=X-Actor
 AUDIT_FALLBACK_ACTOR=system
+REQUEST_HEADER_RESTRICTIONS_ENABLED=true
 ```
+
+Header restriction rules are configured as `request-filter.header-restrictions.rules` entries:
+
+```yaml
+request-filter:
+  header-restrictions:
+    enabled: true
+    rules:
+      - header-name: X-Blocked-Client
+        header-value: legacy-importer
+```
+
+Requests containing any configured header-value pair are rejected with `403 Forbidden`.
 
 For production, run with:
 
@@ -145,6 +160,5 @@ The image name is assembled from `repository` and `serviceName` in `gradle.prope
 - Add a separate REST API layer for external clients
 - Add player search and pagination
 - Add match notes and optional game modes
-- Add request filtering by restricted header-value combinations
 - Add tournament management with configurable brackets and game rules
 - Add authentication for administrative actions

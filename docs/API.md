@@ -25,6 +25,29 @@ The `prod` profile disables both OpenAPI docs and Swagger UI. This keeps local d
 | --- | --- | --- |
 | `X-Actor` | No | Optional actor identifier used by auditing. The header name is configurable through `AUDIT_ACTOR_HEADER`. Missing or blank values fall back to `AUDIT_FALLBACK_ACTOR`, which defaults to `system`. |
 
+## Request Filtering
+
+Incoming requests can be rejected before controller handling when they contain a configured restricted header-value pair. The filter is enabled by default, but the default rules list is empty, so local behavior is unchanged until rules are added.
+
+Example configuration:
+
+```yaml
+request-filter:
+  header-restrictions:
+    enabled: true
+    rules:
+      - header-name: X-Blocked-Client
+        header-value: legacy-importer
+```
+
+Filtering semantics:
+
+- any matching rule rejects the request with `403 Forbidden`
+- header names follow servlet container matching behavior
+- header values are matched exactly
+- repeated header values are rejected when any value matches the configured value
+- set `REQUEST_HEADER_RESTRICTIONS_ENABLED=false` to disable the filter without removing rules
+
 ## Player Endpoints
 
 ### `GET /players`
