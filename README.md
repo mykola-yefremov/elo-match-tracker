@@ -8,6 +8,7 @@ The project is intentionally small, but built like a production service: databas
 
 - Server-rendered UI for player rankings and match history
 - Elo rating calculation with match cancellation and rating rollback
+- JSONB audit revisions for player and match mutations
 - PostgreSQL persistence with Flyway migrations
 - Integration tests backed by Testcontainers
 - Gradle quality gate with JaCoCo coverage verification
@@ -31,6 +32,7 @@ The project is intentionally small, but built like a production service: databas
 ```text
 src/main/java/com/emt
 ├── configuration   # MVC exception handling and OpenAPI configuration
+├── audit           # entity mutation audit listener and actor resolution
 ├── controller      # UI endpoints
 ├── entity          # JPA entities
 ├── mapper          # entity/DTO mapping
@@ -76,6 +78,8 @@ DB_NAME=elt_database
 DB_USERNAME=elt_user
 DB_PASSWORD=elt_pass
 DB_SCHEMA=app_elo_match_tracker
+AUDIT_ACTOR_HEADER=X-Actor
+AUDIT_FALLBACK_ACTOR=system
 ```
 
 For production, run with:
@@ -116,7 +120,7 @@ Flyway migrations live in:
 src/main/resources/db/migration
 ```
 
-Current migrations create player and match tables, store Elo rating deltas for match cancellation, and add indexes for match history queries.
+Current migrations create player, match, and audit revision tables, store Elo rating deltas for match cancellation, and add indexes for match history and audit lookups.
 
 ## Container Image
 
