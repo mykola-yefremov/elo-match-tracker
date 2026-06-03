@@ -8,7 +8,8 @@ Elo Match Tracker is a layered Spring Boot application. The current interface is
 2. `PlayerService` validates nickname uniqueness and persists the player.
 3. A match is reported through `MatchController`.
 4. `MatchService` loads both players, calculates the Elo delta, updates both ratings, and saves the match in one transaction.
-5. Match history is read with a fetch join to avoid lazy-loading each player row individually.
+5. Match history is read with fetch joins to avoid lazy-loading each player row individually.
+6. Match history can be filtered by one player or by a head-to-head pair through query parameters.
 
 ## Match Cancellation
 
