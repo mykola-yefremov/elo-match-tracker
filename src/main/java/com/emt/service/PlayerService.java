@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +22,7 @@ public class PlayerService {
 
   private final PlayerMapper playerMapper;
 
+  @Transactional(readOnly = true)
   public List<PlayerResponse> getAllPlayers() {
     return playerRepository.findAll().stream()
         .sorted(Comparator.comparing(Player::getEloRating).reversed())
@@ -28,6 +30,7 @@ public class PlayerService {
         .toList();
   }
 
+  @Transactional
   public PlayerResponse createPlayer(CreatePlayerRequest request) {
     if (playerRepository.existsByNickname(request.nickname())) {
       throw new PlayerAlreadyExistsException(request.nickname());
@@ -40,12 +43,14 @@ public class PlayerService {
         .orElseThrow();
   }
 
+  @Transactional(readOnly = true)
   public Player getPlayerById(Long playerId) {
     return playerRepository
         .findById(playerId)
         .orElseThrow(() -> new PlayerNotFoundException(playerId));
   }
 
+  @Transactional
   public List<Player> saveWinnerAndLoser(Player winner, Player loser) {
     return playerRepository.saveAll(List.of(winner, loser));
   }

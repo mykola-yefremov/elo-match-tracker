@@ -1,10 +1,10 @@
-dbHost: localhost
-dbPort: 5432
-dbName: elt_database
-dbUsername: elt_user
-dbPassword: elt_pass
+dbHost: ${DB_HOST:localhost}
+dbPort: ${DB_PORT:5432}
+dbName: ${DB_NAME:elt_database}
+dbUsername: ${DB_USERNAME:elt_user}
+dbPassword: ${DB_PASSWORD:elt_pass}
 dbApplicationName: ${spring.application.name}
-dbSchema: app_elo_match_tracker
+dbSchema: ${DB_SCHEMA:app_elo_match_tracker}
 
 spring:
   application:
@@ -21,6 +21,7 @@ spring:
   flyway:
     schemas: ${dbSchema}
   jpa:
+    open-in-view: false
     properties:
       hibernate:
         default_schema: ${dbSchema}
@@ -29,10 +30,12 @@ management:
   endpoints:
     web:
       exposure:
-        include: "*"
+        include: health,info
   endpoint:
     health:
-      show-details: always
+      show-details: when_authorized
+      probes:
+        enabled: true
   health:
     diskspace:
       enabled: false
@@ -50,4 +53,4 @@ info:
 
 springdoc:
   swagger-ui:
-    path: /
+    path: /swagger-ui.html
