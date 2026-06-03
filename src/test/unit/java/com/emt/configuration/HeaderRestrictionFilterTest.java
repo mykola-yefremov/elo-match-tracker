@@ -33,6 +33,23 @@ class HeaderRestrictionFilterTest {
   }
 
   @Test
+  void doFilterInternal_withEmptyRules_shouldDelegateToFilterChainAndLeaveResponseUnchanged()
+      throws Exception {
+    HeaderRestrictionProperties properties = new HeaderRestrictionProperties();
+    properties.setEnabled(true);
+    HeaderRestrictionFilter filter = new HeaderRestrictionFilter(properties);
+    MockHttpServletRequest request = request();
+    MockHttpServletResponse response = new MockHttpServletResponse();
+    TrackingFilterChain filterChain = new TrackingFilterChain();
+    response.setStatus(HttpStatus.OK.value());
+
+    filter.doFilter(request, response, filterChain);
+
+    assertThat(filterChain.invoked).isTrue();
+    assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
+  }
+
+  @Test
   void doFilterInternal_withDifferentHeaderValue_shouldContinueRequest() throws Exception {
     HeaderRestrictionFilter filter = new HeaderRestrictionFilter(restrictionsEnabled());
     MockHttpServletRequest request = request();
