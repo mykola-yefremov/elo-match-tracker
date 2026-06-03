@@ -3,6 +3,7 @@ package com.emt.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.emt.entity.Match;
@@ -30,6 +31,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class MatchServiceTest {
 
   private static final BigDecimal CONSTANT_K = new BigDecimal("30");
+  private static final BigDecimal DEFAULT_RATING_CHANGE = new BigDecimal("15.00");
   private static final String WINNER_NAME = "WinnerPlayer";
   private static final String LOSER_NAME = "LoserPlayer";
 
@@ -37,6 +39,83 @@ class MatchServiceTest {
   @Mock private MatchRepository matchRepository;
   @Mock private MatchMapper matchMapper;
   @InjectMocks private MatchService matchService;
+
+  @Test
+  void getMatchHistory_withoutFilters_ShouldReturnAllMatches() {
+    Match match = new Match();
+    MatchResponse response =
+        new MatchResponse(1L, WINNER_NAME, LOSER_NAME, Instant.now(), DEFAULT_RATING_CHANGE);
+
+    given(matchRepository.findAllWithPlayers()).willReturn(List.of(match));
+    given(matchMapper.mapToResponse(match)).willReturn(response);
+
+    List<MatchResponse> actualResponses = matchService.getMatchHistory(null, null);
+
+    assertThat(actualResponses).containsExactly(response);
+    verify(matchRepository).findAllWithPlayers();
+  }
+
+  @Test
+  void getMatchHistory_withSinglePlayerFilter_ShouldReturnPlayerMatches() {
+    Match match = new Match();
+    MatchResponse response =
+        new MatchResponse(1L, WINNER_NAME, LOSER_NAME, Instant.now(), DEFAULT_RATING_CHANGE);
+
+    given(matchRepository.findMatchesByPlayer(1L)).willReturn(List.of(match));
+    given(matchMapper.mapToResponse(match)).willReturn(response);
+
+    List<MatchResponse> actualResponses = matchService.getMatchHistory(1L, null);
+
+    assertThat(actualResponses).containsExactly(response);
+    verify(matchRepository).findMatchesByPlayer(1L);
+    verify(matchRepository, never()).findMatchesBetweenPlayers(1L, null);
+  }
+
+  @Test
+  void getMatchHistory_withOpponentOnlyFilter_ShouldReturnOpponentMatches() {
+    Match match = new Match();
+    MatchResponse response =
+        new MatchResponse(1L, WINNER_NAME, LOSER_NAME, Instant.now(), DEFAULT_RATING_CHANGE);
+
+    given(matchRepository.findMatchesByPlayer(2L)).willReturn(List.of(match));
+    given(matchMapper.mapToResponse(match)).willReturn(response);
+
+    List<MatchResponse> actualResponses = matchService.getMatchHistory(null, 2L);
+
+    assertThat(actualResponses).containsExactly(response);
+    verify(matchRepository).findMatchesByPlayer(2L);
+  }
+
+  @Test
+  void getMatchHistory_withSamePlayerPairFilter_ShouldReturnSinglePlayerMatches() {
+    Match match = new Match();
+    MatchResponse response =
+        new MatchResponse(1L, WINNER_NAME, LOSER_NAME, Instant.now(), DEFAULT_RATING_CHANGE);
+
+    given(matchRepository.findMatchesByPlayer(1L)).willReturn(List.of(match));
+    given(matchMapper.mapToResponse(match)).willReturn(response);
+
+    List<MatchResponse> actualResponses = matchService.getMatchHistory(1L, 1L);
+
+    assertThat(actualResponses).containsExactly(response);
+    verify(matchRepository).findMatchesByPlayer(1L);
+    verify(matchRepository, never()).findMatchesBetweenPlayers(1L, 1L);
+  }
+
+  @Test
+  void getMatchHistory_withPairFilter_ShouldReturnMatchesBetweenPlayers() {
+    Match match = new Match();
+    MatchResponse response =
+        new MatchResponse(1L, WINNER_NAME, LOSER_NAME, Instant.now(), DEFAULT_RATING_CHANGE);
+
+    given(matchRepository.findMatchesBetweenPlayers(1L, 2L)).willReturn(List.of(match));
+    given(matchMapper.mapToResponse(match)).willReturn(response);
+
+    List<MatchResponse> actualResponses = matchService.getMatchHistory(1L, 2L);
+
+    assertThat(actualResponses).containsExactly(response);
+    verify(matchRepository).findMatchesBetweenPlayers(1L, 2L);
+  }
 
   @Test
   void createMatch_WhenWinnerAndLoserAreIdentical_ShouldThrowException() {
@@ -83,7 +162,7 @@ class MatchServiceTest {
     Instant createdAt = Instant.now();
     Player winner = new Player(1L, WINNER_NAME, new BigDecimal("1215.00"), createdAt);
     Player loser = new Player(2L, LOSER_NAME, new BigDecimal("1185.00"), createdAt);
-    Match match = new Match(10L, winner, loser, new BigDecimal("15.00"), createdAt);
+    Match match = new Match(10L, winner, loser, DEFAULT_RATING_CHANGE, createdAt);
 
     given(matchRepository.findById(10L)).willReturn(Optional.of(match));
     given(matchRepository.findMatchesByPlayersAfter(createdAt, 1L, 2L)).willReturn(List.of());
@@ -110,7 +189,7 @@ class MatchServiceTest {
     Instant createdAt = Instant.now();
     Player winner = new Player(1L, WINNER_NAME, new BigDecimal("1215.00"), createdAt);
     Player loser = new Player(2L, LOSER_NAME, new BigDecimal("1185.00"), createdAt);
-    Match match = new Match(20L, winner, loser, new BigDecimal("15.00"), createdAt);
+    Match match = new Match(20L, winner, loser, DEFAULT_RATING_CHANGE, createdAt);
 
     given(playerService.getPlayerById(1L)).willReturn(winner);
     given(playerService.getPlayerById(2L)).willReturn(loser);
