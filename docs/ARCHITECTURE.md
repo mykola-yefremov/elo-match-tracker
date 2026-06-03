@@ -25,6 +25,12 @@ Each revision stores the affected entity type, entity id, operation, actor, time
 
 The actor is read from a configurable request header (`AUDIT_ACTOR_HEADER`, default `X-Actor`). Non-web flows fall back to `AUDIT_FALLBACK_ACTOR`.
 
+## Request Filtering
+
+Request header restrictions are enforced by a `OncePerRequestFilter` registered at the highest servlet filter precedence. The filter reads validated `request-filter.header-restrictions` properties and rejects a request with `403 Forbidden` when any configured rule matches a request header name and exact value.
+
+The default rules list is empty, keeping local development open by default while allowing deployments to block known clients, scanners, or integration paths through configuration only. Restricted header values are not written to logs; rejection logs include the URI, method, and matching header name.
+
 ## Persistence
 
 The application uses PostgreSQL with Flyway migrations. Rating values are stored as `NUMERIC(10, 2)` to keep deterministic decimal behavior and avoid floating point drift.
