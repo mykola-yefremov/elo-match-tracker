@@ -1,5 +1,7 @@
 package com.emt.configuration;
 
+import com.emt.controller.MatchController;
+import com.emt.controller.PlayerController;
 import com.emt.model.exception.IdenticalPlayersException;
 import com.emt.model.exception.MatchNotFoundException;
 import com.emt.model.exception.PlayerAlreadyExistsException;
@@ -7,19 +9,23 @@ import com.emt.model.exception.PlayerNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.BindException;
+import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Slf4j
-@ControllerAdvice
+@ControllerAdvice(assignableTypes = {PlayerController.class, MatchController.class})
 public class ExceptionHandlerConfiguration {
 
   private static final String ERROR_ATTRIBUTE = "error";
+  private static final String GLOBAL_ERROR_ATTRIBUTE = "global";
 
   @ExceptionHandler({BindException.class, MethodArgumentNotValidException.class})
   public String handleValidationException(
@@ -78,17 +84,30 @@ public class ExceptionHandlerConfiguration {
 
   private Map<String, String> extractValidationErrors(Exception ex) {
     Map<String, String> errors = new HashMap<>();
-    if (ex instanceof BindException bindException) {
-      bindException
-          .getBindingResult()
-          .getAllErrors()
-          .forEach(
-              error -> {
-                String fieldName = ((FieldError) error).getField();
-                errors.put(fieldName, error.getDefaultMessage());
-              });
-    }
+    extractBindingResult(ex)
+        .ifPresent(
+            bindingResult ->
+                bindingResult.getAllErrors().forEach(error -> addValidationError(errors, error)));
     return errors;
+  }
+
+  private Optional<BindingResult> extractBindingResult(Exception ex) {
+    if (ex instanceof BindException bindException) {
+      return Optional.of(bindException.getBindingResult());
+    }
+    if (ex instanceof MethodArgumentNotValidException methodArgumentNotValidException) {
+      return Optional.of(methodArgumentNotValidException.getBindingResult());
+    }
+    return Optional.empty();
+  }
+
+  private void addValidationError(Map<String, String> errors, ObjectError error) {
+    if (error instanceof FieldError fieldError) {
+      errors.put(fieldError.getField(), error.getDefaultMessage());
+      return;
+    }
+
+    errors.merge(GLOBAL_ERROR_ATTRIBUTE, error.getDefaultMessage(), (left, right) -> left + "; " + right);
   }
 
   private String redirectTargetFor(HttpServletRequest request) {
