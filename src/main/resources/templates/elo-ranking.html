@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <link rel="stylesheet" href="./styles/styles.css">
+    <link rel="stylesheet" th:href="@{/styles/styles.css}">
     <title>Elo Ranking</title>
 </head>
 <body>
-<header>
+<header class="page-header">
     <nav class="header-nav">
+        <a class="brand" href="/players">Elo Match Tracker</a>
         <ul class="header-list">
             <li class="header-item">
                 <a href="/matches" class="header-link">Match History</a>
@@ -15,22 +16,40 @@
     </nav>
 </header>
 
-<main>
-    <div th:if="${error}" style="color: red;">
+<main class="page-shell">
+    <section class="hero">
+        <p class="eyebrow">1v1 ranking system</p>
+        <h1>Player leaderboard</h1>
+        <p class="hero-copy">Register players, report match outcomes, and keep Elo ratings in sync.</p>
+    </section>
+
+    <div class="alert alert-error" th:if="${error}">
         <p th:text="${error}">Error occurred</p>
     </div>
 
-    <section>
-        <h2>Player Rankings</h2>
-        <ul>
-            <li th:each="player : ${players}">
-                <span th:text="${player.nickname}">nickname</span>
-                - <span th:text="${player.eloRating}">rating</span>
+    <div class="alert alert-success" th:if="${message}">
+        <p th:text="${message}">Action completed</p>
+    </div>
+
+    <div class="alert alert-error" th:if="${errors}">
+        <p th:each="entry : ${errors}" th:text="${entry.value}">Validation error</p>
+    </div>
+
+    <section class="panel">
+        <div class="section-title">
+            <h2>Rankings</h2>
+            <span th:text="${#lists.size(players)} + ' players'">0 players</span>
+        </div>
+        <ol class="ranking-list">
+            <li th:each="player, stat : ${players}" class="ranking-row">
+                <span class="rank" th:text="${stat.count}">1</span>
+                <span class="nickname" th:text="${player.nickname}">nickname</span>
+                <span class="rating" th:text="${player.eloRating}">1200</span>
             </li>
-        </ul>
+        </ol>
     </section>
 
-    <section class="form-section">
+    <section class="form-section panel">
         <h2>Add a New Player</h2>
         <form th:action="@{/players/register}" th:object="${playerRequest}" method="post">
             <input type="text" th:field="*{nickname}" placeholder="Enter player name" required>
@@ -38,7 +57,7 @@
         </form>
     </section>
 
-    <section class="form-section">
+    <section class="form-section panel">
         <h2>Report Match Outcome</h2>
         <form th:action="@{/matches/report}" th:object="${matchRequest}" method="post">
             <label for="winner">Winner:</label>
