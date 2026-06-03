@@ -31,7 +31,23 @@ public class MatchService {
 
   @Transactional(readOnly = true)
   public List<MatchResponse> getAllMatches() {
-    return matchRepository.findAllWithPlayers().stream().map(matchMapper::mapToResponse).toList();
+    return getMatchHistory(null, null);
+  }
+
+  @Transactional(readOnly = true)
+  public List<MatchResponse> getMatchHistory(Long playerId, Long opponentId) {
+    return mapMatches(findMatchesForHistory(playerId, opponentId));
+  }
+
+  private List<Match> findMatchesForHistory(Long playerId, Long opponentId) {
+    if (playerId == null && opponentId == null) {
+      return matchRepository.findAllWithPlayers();
+    }
+    if (playerId == null || opponentId == null || playerId.equals(opponentId)) {
+      Long selectedPlayerId = playerId == null ? opponentId : playerId;
+      return matchRepository.findMatchesByPlayer(selectedPlayerId);
+    }
+    return matchRepository.findMatchesBetweenPlayers(playerId, opponentId);
   }
 
   @Transactional
@@ -110,5 +126,9 @@ public class MatchService {
 
       matchRepository.save(match);
     }
+  }
+
+  private List<MatchResponse> mapMatches(List<Match> matches) {
+    return matches.stream().map(matchMapper::mapToResponse).toList();
   }
 }

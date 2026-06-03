@@ -25,6 +25,31 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
       """
                   SELECT m
                   FROM Match m
+                  JOIN FETCH m.winner
+                  JOIN FETCH m.loser
+                  WHERE m.winner.playerId = :playerId
+                     OR m.loser.playerId = :playerId
+                  ORDER BY m.createdAt DESC
+                  """)
+  List<Match> findMatchesByPlayer(@Param("playerId") Long playerId);
+
+  @Query(
+      """
+                  SELECT m
+                  FROM Match m
+                  JOIN FETCH m.winner
+                  JOIN FETCH m.loser
+                  WHERE (m.winner.playerId = :firstPlayerId AND m.loser.playerId = :secondPlayerId)
+                     OR (m.winner.playerId = :secondPlayerId AND m.loser.playerId = :firstPlayerId)
+                  ORDER BY m.createdAt DESC
+                  """)
+  List<Match> findMatchesBetweenPlayers(
+      @Param("firstPlayerId") Long firstPlayerId, @Param("secondPlayerId") Long secondPlayerId);
+
+  @Query(
+      """
+                  SELECT m
+                  FROM Match m
                   WHERE m.createdAt > :createdAt
                     AND (m.winner.playerId IN (:winnerId, :loserId)
                          OR m.loser.playerId IN (:winnerId, :loserId))

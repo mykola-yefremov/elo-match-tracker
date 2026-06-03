@@ -33,6 +33,35 @@
 
     <section class="panel">
         <div class="section-title">
+            <h2>Filter history</h2>
+            <span>Pick one player or compare a pair</span>
+        </div>
+        <form class="filter-form" th:action="@{/matches}" method="get">
+            <label for="playerId">Player</label>
+            <select id="playerId" name="playerId">
+                <option value="">All players</option>
+                <option th:each="player : ${players}"
+                        th:value="${player.playerId}"
+                        th:selected="${selectedPlayerId != null && selectedPlayerId == player.playerId}"
+                        th:text="${player.nickname}">Player</option>
+            </select>
+
+            <label for="opponentId">Opponent</label>
+            <select id="opponentId" name="opponentId">
+                <option value="">Any opponent</option>
+                <option th:each="player : ${players}"
+                        th:value="${player.playerId}"
+                        th:selected="${selectedOpponentId != null && selectedOpponentId == player.playerId}"
+                        th:text="${player.nickname}">Opponent</option>
+            </select>
+
+            <button type="submit">Apply filters</button>
+            <a class="button-link" th:href="@{/matches}">Clear</a>
+        </form>
+    </section>
+
+    <section class="panel">
+        <div class="section-title">
             <h2>Reported matches</h2>
             <span th:text="${#lists.size(matches)} + ' matches'">0 matches</span>
         </div>

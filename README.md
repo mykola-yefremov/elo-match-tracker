@@ -7,7 +7,7 @@ The project is intentionally small, but built like a production service: databas
 ## Highlights
 
 - Server-rendered UI for player rankings and match history
-- Elo rating calculation with match cancellation and rating rollback
+- Elo rating calculation with match cancellation, rating rollback, and match history filters
 - JSONB audit revisions for player and match mutations
 - PostgreSQL persistence with Flyway migrations
 - Integration tests backed by Testcontainers
@@ -134,6 +134,7 @@ The image name is assembled from `repository` and `serviceName` in `gradle.prope
 
 ## Documentation
 
+- [API and Domain Behavior](docs/API.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
@@ -144,4 +145,6 @@ The image name is assembled from `repository` and `serviceName` in `gradle.prope
 - Add a separate REST API layer for external clients
 - Add player search and pagination
 - Add match notes and optional game modes
+- Add request filtering by restricted header-value combinations
+- Add tournament management with configurable brackets and game rules
 - Add authentication for administrative actions

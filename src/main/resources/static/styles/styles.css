@@ -208,6 +208,13 @@ h2 {
     margin-top: 16px;
 }
 
+.filter-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: end;
+}
+
 label {
     color: var(--muted);
     font-weight: 700;
@@ -246,6 +253,23 @@ button:hover {
 }
 
 .button-secondary:hover {
+    border-color: var(--accent);
+    background: var(--surface-muted);
+}
+
+.button-link {
+    display: inline-flex;
+    min-height: 42px;
+    align-items: center;
+    padding: 0 16px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--accent-strong);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.button-link:hover {
     border-color: var(--accent);
     background: var(--surface-muted);
 }
@@ -300,9 +324,11 @@ th {
     }
 
     .form-section form,
+    .filter-form,
     input,
     select,
-    button {
+    button,
+    .button-link {
         width: 100%;
     }
 
