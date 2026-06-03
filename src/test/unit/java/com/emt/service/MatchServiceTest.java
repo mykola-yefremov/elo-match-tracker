@@ -9,11 +9,15 @@ import com.emt.entity.Match;
 import com.emt.entity.Player;
 import com.emt.mapper.MatchMapper;
 import com.emt.model.exception.IdenticalPlayersException;
+import com.emt.model.exception.MatchNotFoundException;
 import com.emt.model.request.CreateMatchRequest;
 import com.emt.model.response.MatchResponse;
 import com.emt.repository.MatchRepository;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -26,6 +30,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class MatchServiceTest {
 
   private static final BigDecimal CONSTANT_K = new BigDecimal("30");
+  private static final String WINNER_NAME = "WinnerPlayer";
+  private static final String LOSER_NAME = "LoserPlayer";
+
   @Mock private PlayerService playerService;
   @Mock private MatchRepository matchRepository;
   @Mock private MatchMapper matchMapper;
@@ -33,9 +40,10 @@ class MatchServiceTest {
 
   @Test
   void createMatch_WhenWinnerAndLoserAreIdentical_ShouldThrowException() {
-    CreateMatchRequest request = CreateMatchRequest.builder().winnerId(1L).loserId(1L).build();
-
-    assertThatThrownBy(() -> matchService.createMatch(request))
+    assertThatThrownBy(
+            () ->
+                matchService.createMatch(
+                    CreateMatchRequest.builder().winnerId(1L).loserId(1L).build()))
         .isInstanceOf(IdenticalPlayersException.class)
         .hasMessageContaining("A match cannot be created with identical players.");
   }
@@ -44,18 +52,18 @@ class MatchServiceTest {
   void createMatch_WhenPlayersAreDifferent_ShouldCreateMatchSuccessfully() {
     CreateMatchRequest request = CreateMatchRequest.builder().winnerId(1L).loserId(2L).build();
 
-    Player winner = new Player(1L, "WinnerPlayer", new BigDecimal("2500"), Instant.now());
-    Player loser = new Player(2L, "LoserPlayer", new BigDecimal("2000"), Instant.now());
+    Player winner = new Player(1L, WINNER_NAME, new BigDecimal("2500"), Instant.now());
+    Player loser = new Player(2L, LOSER_NAME, new BigDecimal("2000"), Instant.now());
 
     BigDecimal probabilityWinner =
         matchService.calculateProbability(winner.getEloRating(), loser.getEloRating());
     BigDecimal winnerRatingGain =
         CONSTANT_K
             .multiply(BigDecimal.ONE.subtract(probabilityWinner))
-            .setScale(2, BigDecimal.ROUND_HALF_UP);
+            .setScale(2, RoundingMode.HALF_UP);
     Match match = new Match();
     MatchResponse expectedResponse =
-        new MatchResponse(1L, "WinnerPlayer", "LoserPlayer", Instant.now(), winnerRatingGain);
+        new MatchResponse(1L, WINNER_NAME, LOSER_NAME, Instant.now(), winnerRatingGain);
 
     given(playerService.getPlayerById(1L)).willReturn(winner);
     given(playerService.getPlayerById(2L)).willReturn(loser);
@@ -67,6 +75,51 @@ class MatchServiceTest {
 
     assertThat(actualResponse).isEqualTo(expectedResponse);
     assertThat(actualResponse.winnerRatingChange()).isEqualByComparingTo(winnerRatingGain);
+    verify(matchRepository).save(match);
+  }
+
+  @Test
+  void cancelMatch_WhenMatchExists_ShouldRevertRatingsAndDeleteMatch() {
+    Instant createdAt = Instant.now();
+    Player winner = new Player(1L, WINNER_NAME, new BigDecimal("1215.00"), createdAt);
+    Player loser = new Player(2L, LOSER_NAME, new BigDecimal("1185.00"), createdAt);
+    Match match = new Match(10L, winner, loser, new BigDecimal("15.00"), createdAt);
+
+    given(matchRepository.findById(10L)).willReturn(Optional.of(match));
+    given(matchRepository.findMatchesByPlayersAfter(createdAt, 1L, 2L)).willReturn(List.of());
+
+    matchService.cancelMatch(10L);
+
+    assertThat(winner.getEloRating()).isEqualByComparingTo("1200.00");
+    assertThat(loser.getEloRating()).isEqualByComparingTo("1200.00");
+    verify(playerService).saveWinnerAndLoser(winner, loser);
+    verify(matchRepository).deleteById(10L);
+  }
+
+  @Test
+  void cancelMatch_WhenMatchDoesNotExist_ShouldThrowMatchNotFoundException() {
+    given(matchRepository.findById(404L)).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> matchService.cancelMatch(404L))
+        .isInstanceOf(MatchNotFoundException.class)
+        .hasMessageContaining("Match not found with id 404");
+  }
+
+  @Test
+  void recalculateEloRatingsForSubsequentMatches_ShouldReplaceStoredRatingChange() {
+    Instant createdAt = Instant.now();
+    Player winner = new Player(1L, WINNER_NAME, new BigDecimal("1215.00"), createdAt);
+    Player loser = new Player(2L, LOSER_NAME, new BigDecimal("1185.00"), createdAt);
+    Match match = new Match(20L, winner, loser, new BigDecimal("15.00"), createdAt);
+
+    given(playerService.getPlayerById(1L)).willReturn(winner);
+    given(playerService.getPlayerById(2L)).willReturn(loser);
+
+    matchService.recalculateEloRatingsForSubsequentMatches(List.of(match));
+
+    assertThat(match.getWinnerRatingChange()).isEqualByComparingTo("15.00");
+    assertThat(winner.getEloRating()).isEqualByComparingTo("1215.00");
+    assertThat(loser.getEloRating()).isEqualByComparingTo("1185.00");
     verify(matchRepository).save(match);
   }
 
@@ -86,8 +139,8 @@ class MatchServiceTest {
     BigDecimal initialLoserRating = new BigDecimal(loserRatingStr);
     BigDecimal expectedChange = new BigDecimal(expectedChangeStr);
 
-    Player winner = new Player(1L, "WinnerPlayer", initialWinnerRating, Instant.now());
-    Player loser = new Player(2L, "LoserPlayer", initialLoserRating, Instant.now());
+    Player winner = new Player(1L, WINNER_NAME, initialWinnerRating, Instant.now());
+    Player loser = new Player(2L, LOSER_NAME, initialLoserRating, Instant.now());
 
     BigDecimal ratingChange = matchService.updateEloRatings(winner, loser);
 

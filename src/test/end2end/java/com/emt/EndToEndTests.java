@@ -37,6 +37,8 @@ public class EndToEndTests {
   @SuppressWarnings("resource")
   private static final DockerComposeContainer<?> COMPOSITION =
       new DockerComposeContainer<>(new File("src/test/end2end/resources/docker/docker-compose.yml"))
+          .withLocalCompose(true)
+          .withOptions("--compatibility")
           .withExposedService(APP, API_PORT, forHealthcheck())
           .withExposedService(APP, SERVICE_PORT)
           .withExposedService(

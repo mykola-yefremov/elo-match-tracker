@@ -20,6 +20,9 @@ import org.junit.jupiter.api.Test;
 @RequiredArgsConstructor
 public class MatchServiceIT extends ITBase {
 
+  private static final String WINNER_NICKNAME = "Winner";
+  private static final String LOSER_NICKNAME = "Loser";
+
   private final MatchService matchService;
   private final MatchRepository matchRepository;
   private final PlayerService playerService;
@@ -27,9 +30,9 @@ public class MatchServiceIT extends ITBase {
   @Test
   public void testGetAllMatches_WhenMatchIsCreatedSuccessfully_ShouldReturnAllMatches() {
     PlayerResponse firstPlayer =
-        playerService.createPlayer(CreatePlayerRequest.builder().nickname("Winner").build());
+        playerService.createPlayer(CreatePlayerRequest.builder().nickname(WINNER_NICKNAME).build());
     PlayerResponse secondPlayer =
-        playerService.createPlayer(CreatePlayerRequest.builder().nickname("Loser").build());
+        playerService.createPlayer(CreatePlayerRequest.builder().nickname(LOSER_NICKNAME).build());
 
     CreateMatchRequest matchRequest =
         new CreateMatchRequest(firstPlayer.playerId(), secondPlayer.playerId());
@@ -38,16 +41,16 @@ public class MatchServiceIT extends ITBase {
     List<MatchResponse> matches = matchService.getAllMatches();
 
     assertEquals(1, matches.size());
-    assertEquals("Winner", matches.get(0).winnerName());
-    assertEquals("Loser", matches.get(0).loserName());
+    assertEquals(WINNER_NICKNAME, matches.get(0).winnerName());
+    assertEquals(LOSER_NICKNAME, matches.get(0).loserName());
   }
 
   @Test
   public void testEloRatingUpdateAfterMatch() {
     PlayerResponse firstPlayer =
-        playerService.createPlayer(CreatePlayerRequest.builder().nickname("Winner").build());
+        playerService.createPlayer(CreatePlayerRequest.builder().nickname(WINNER_NICKNAME).build());
     PlayerResponse secondPlayer =
-        playerService.createPlayer(CreatePlayerRequest.builder().nickname("Loser").build());
+        playerService.createPlayer(CreatePlayerRequest.builder().nickname(LOSER_NICKNAME).build());
 
     BigDecimal initialRatingFirstPlayer = firstPlayer.eloRating();
     BigDecimal initialRatingSecondPlayer = secondPlayer.eloRating();
@@ -64,10 +67,8 @@ public class MatchServiceIT extends ITBase {
 
   @Test
   public void testCancelNonExistentMatch_shouldThrowMatchNotFoundException() {
-    Long nonExistentMatchId = 999L;
     MatchNotFoundException exception =
-        assertThrows(
-            MatchNotFoundException.class, () -> matchService.cancelMatch(nonExistentMatchId));
+        assertThrows(MatchNotFoundException.class, () -> matchService.cancelMatch(999L));
 
     assertThat(exception.getMessage()).contains("Match not found with id");
   }
@@ -113,9 +114,9 @@ public class MatchServiceIT extends ITBase {
   @Test
   public void testPlayerIdInMatchDoesNotChange() {
     PlayerResponse firstPlayer =
-        playerService.createPlayer(CreatePlayerRequest.builder().nickname("Winner").build());
+        playerService.createPlayer(CreatePlayerRequest.builder().nickname(WINNER_NICKNAME).build());
     PlayerResponse secondPlayer =
-        playerService.createPlayer(CreatePlayerRequest.builder().nickname("Loser").build());
+        playerService.createPlayer(CreatePlayerRequest.builder().nickname(LOSER_NICKNAME).build());
 
     Long firstPlayerIdBefore = firstPlayer.playerId();
     Long secondPlayerIdBefore = secondPlayer.playerId();
@@ -133,9 +134,9 @@ public class MatchServiceIT extends ITBase {
   @Test
   public void testMatchDoesNotModifyExistingInfo() {
     PlayerResponse firstPlayer =
-        playerService.createPlayer(CreatePlayerRequest.builder().nickname("Winner").build());
+        playerService.createPlayer(CreatePlayerRequest.builder().nickname(WINNER_NICKNAME).build());
     PlayerResponse secondPlayer =
-        playerService.createPlayer(CreatePlayerRequest.builder().nickname("Loser").build());
+        playerService.createPlayer(CreatePlayerRequest.builder().nickname(LOSER_NICKNAME).build());
 
     Player firstPlayerBeforeMatch = playerService.getPlayerById(firstPlayer.playerId());
     Player secondPlayerBeforeMatch = playerService.getPlayerById(secondPlayer.playerId());
