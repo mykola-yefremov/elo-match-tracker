@@ -1,9 +1,11 @@
 package com.emt.configuration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.emt.metrics.BusinessMetrics;
 import jakarta.servlet.FilterChain;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -13,6 +15,8 @@ import org.springframework.mock.web.MockHttpServletResponse;
 
 class HeaderRestrictionFilterTest {
 
+  private final BusinessMetrics businessMetrics = mock(BusinessMetrics.class);
+
   private static final String RESTRICTED_HEADER = "X-Blocked-Client";
   private static final String RESTRICTED_VALUE = "legacy-importer";
   private static final String REQUEST_METHOD = "GET";
@@ -20,7 +24,7 @@ class HeaderRestrictionFilterTest {
 
   @Test
   void doFilterInternal_withConfiguredHeaderValuePair_shouldRejectRequest() throws Exception {
-    HeaderRestrictionFilter filter = new HeaderRestrictionFilter(restrictionsEnabled());
+    HeaderRestrictionFilter filter = new HeaderRestrictionFilter(restrictionsEnabled(), businessMetrics);
     MockHttpServletRequest request = request();
     MockHttpServletResponse response = new MockHttpServletResponse();
     FilterChain filterChain = (request1, response1) -> {};
@@ -30,6 +34,7 @@ class HeaderRestrictionFilterTest {
 
     assertThat(response.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
     assertThat(response.getErrorMessage()).isEqualTo("Request rejected by header restriction policy");
+    verify(businessMetrics).recordRestrictedRequest();
   }
 
   @Test
@@ -37,7 +42,7 @@ class HeaderRestrictionFilterTest {
       throws Exception {
     HeaderRestrictionProperties properties = new HeaderRestrictionProperties();
     properties.setEnabled(true);
-    HeaderRestrictionFilter filter = new HeaderRestrictionFilter(properties);
+    HeaderRestrictionFilter filter = new HeaderRestrictionFilter(properties, businessMetrics);
     MockHttpServletRequest request = request();
     MockHttpServletResponse response = new MockHttpServletResponse();
     TrackingFilterChain filterChain = new TrackingFilterChain();
@@ -51,7 +56,7 @@ class HeaderRestrictionFilterTest {
 
   @Test
   void doFilterInternal_withDifferentHeaderValue_shouldContinueRequest() throws Exception {
-    HeaderRestrictionFilter filter = new HeaderRestrictionFilter(restrictionsEnabled());
+    HeaderRestrictionFilter filter = new HeaderRestrictionFilter(restrictionsEnabled(), businessMetrics);
     MockHttpServletRequest request = request();
     MockHttpServletResponse response = new MockHttpServletResponse();
     TrackingFilterChain filterChain = new TrackingFilterChain();
@@ -67,7 +72,7 @@ class HeaderRestrictionFilterTest {
   void doFilterInternal_whenRestrictionsDisabled_shouldContinueRequest() throws Exception {
     HeaderRestrictionProperties properties = restrictionsEnabled();
     properties.setEnabled(false);
-    HeaderRestrictionFilter filter = new HeaderRestrictionFilter(properties);
+    HeaderRestrictionFilter filter = new HeaderRestrictionFilter(properties, businessMetrics);
     MockHttpServletRequest request = request();
     MockHttpServletResponse response = new MockHttpServletResponse();
     TrackingFilterChain filterChain = new TrackingFilterChain();
@@ -82,7 +87,7 @@ class HeaderRestrictionFilterTest {
   @Test
   void doFilterInternal_withRepeatedHeaderValues_shouldRejectWhenAnyValueMatches()
       throws Exception {
-    HeaderRestrictionFilter filter = new HeaderRestrictionFilter(restrictionsEnabled());
+    HeaderRestrictionFilter filter = new HeaderRestrictionFilter(restrictionsEnabled(), businessMetrics);
     MockHttpServletRequest request = request();
     MockHttpServletResponse response = new MockHttpServletResponse();
     FilterChain filterChain = (request1, response1) -> {};
@@ -96,10 +101,10 @@ class HeaderRestrictionFilterTest {
 
   @Test
   void doFilterInternal_withoutMatchingRule_shouldDelegateToFilterChain() throws Exception {
-    HeaderRestrictionFilter filter = new HeaderRestrictionFilter(restrictionsEnabled());
+    HeaderRestrictionFilter filter = new HeaderRestrictionFilter(restrictionsEnabled(), businessMetrics);
     MockHttpServletRequest request = request();
     MockHttpServletResponse response = new MockHttpServletResponse();
-    FilterChain filterChain = org.mockito.Mockito.mock(FilterChain.class);
+    FilterChain filterChain = mock(FilterChain.class);
 
     filter.doFilter(request, response, filterChain);
 
@@ -108,10 +113,10 @@ class HeaderRestrictionFilterTest {
 
   @Test
   void doFilterInternal_withRestrictedRequest_shouldNotDelegateToFilterChain() throws Exception {
-    HeaderRestrictionFilter filter = new HeaderRestrictionFilter(restrictionsEnabled());
+    HeaderRestrictionFilter filter = new HeaderRestrictionFilter(restrictionsEnabled(), businessMetrics);
     MockHttpServletRequest request = request();
     MockHttpServletResponse response = new MockHttpServletResponse();
-    FilterChain filterChain = org.mockito.Mockito.mock(FilterChain.class);
+    FilterChain filterChain = mock(FilterChain.class);
     request.addHeader(RESTRICTED_HEADER, RESTRICTED_VALUE);
 
     filter.doFilter(request, response, filterChain);

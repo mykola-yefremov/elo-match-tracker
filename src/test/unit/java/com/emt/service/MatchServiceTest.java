@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import com.emt.entity.Match;
 import com.emt.entity.Player;
 import com.emt.mapper.MatchMapper;
+import com.emt.metrics.BusinessMetrics;
 import com.emt.model.exception.IdenticalPlayersException;
 import com.emt.model.exception.MatchNotFoundException;
 import com.emt.model.request.CreateMatchRequest;
@@ -39,6 +40,7 @@ class MatchServiceTest {
   @Mock private PlayerService playerService;
   @Mock private MatchRepository matchRepository;
   @Mock private MatchMapper matchMapper;
+  @Mock private BusinessMetrics businessMetrics;
   @InjectMocks private MatchService matchService;
 
   @Test
@@ -145,8 +147,7 @@ class MatchServiceTest {
     MatchResponse expectedResponse =
         new MatchResponse(1L, WINNER_NAME, LOSER_NAME, Instant.now(), winnerRatingGain);
 
-    given(playerService.getPlayerById(1L)).willReturn(winner);
-    given(playerService.getPlayerById(2L)).willReturn(loser);
+    given(playerService.getPlayersForRatingUpdate(1L, 2L)).willReturn(List.of(winner, loser));
     given(matchMapper.mapToEntity(winner, loser, winnerRatingGain)).willReturn(match);
     given(matchRepository.save(match)).willReturn(match);
     given(matchMapper.mapToResponse(match)).willReturn(expectedResponse);
@@ -156,6 +157,7 @@ class MatchServiceTest {
     assertThat(actualResponse).isEqualTo(expectedResponse);
     assertThat(actualResponse.winnerRatingChange()).isEqualByComparingTo(winnerRatingGain);
     verify(matchRepository).save(match);
+    verify(businessMetrics).recordMatchCreated();
   }
 
   @Test
@@ -166,6 +168,7 @@ class MatchServiceTest {
     Match match = new Match(10L, winner, loser, DEFAULT_RATING_CHANGE, createdAt);
 
     given(matchRepository.findById(10L)).willReturn(Optional.of(match));
+    given(playerService.getPlayersForRatingUpdate(1L, 2L)).willReturn(List.of(winner, loser));
     given(matchRepository.findMatchesByPlayersAfter(createdAt, 1L, 2L)).willReturn(List.of());
 
     matchService.cancelMatch(10L);
@@ -174,6 +177,7 @@ class MatchServiceTest {
     assertThat(loser.getEloRating()).isEqualByComparingTo("1200.00");
     verify(playerService).saveWinnerAndLoser(winner, loser);
     verify(matchRepository).deleteById(10L);
+    verify(businessMetrics).recordMatchCancelled();
   }
 
   @Test
@@ -192,8 +196,7 @@ class MatchServiceTest {
     Player loser = new Player(2L, LOSER_NAME, new BigDecimal("1185.00"), createdAt);
     Match match = new Match(20L, winner, loser, DEFAULT_RATING_CHANGE, createdAt);
 
-    given(playerService.getPlayerById(1L)).willReturn(winner);
-    given(playerService.getPlayerById(2L)).willReturn(loser);
+    given(playerService.getPlayersForRatingUpdate(1L, 2L)).willReturn(List.of(winner, loser));
 
     matchService.recalculateEloRatingsForSubsequentMatches(List.of(match));
 

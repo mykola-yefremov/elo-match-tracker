@@ -2,6 +2,7 @@ package com.emt.service;
 
 import com.emt.entity.Player;
 import com.emt.mapper.TournamentMapper;
+import com.emt.metrics.BusinessMetrics;
 import com.emt.model.exception.TournamentCreationException;
 import com.emt.model.request.CreateTournamentRequest;
 import com.emt.model.response.TournamentResponse;
@@ -24,6 +25,7 @@ public class TournamentService {
   private final PlayerRepository playerRepository;
   private final TournamentRepository tournamentRepository;
   private final TournamentMapper tournamentMapper;
+  private final BusinessMetrics businessMetrics;
 
   @Transactional(readOnly = true)
   public List<TournamentResponse> getAllTournaments() {
@@ -42,10 +44,13 @@ public class TournamentService {
       Collections.shuffle(players);
     }
 
-    return Optional.of(tournamentMapper.mapToEntity(request, players))
-        .map(tournamentRepository::save)
-        .map(tournamentMapper::mapToResponse)
-        .orElseThrow();
+    TournamentResponse response =
+        Optional.of(tournamentMapper.mapToEntity(request, players))
+            .map(tournamentRepository::save)
+            .map(tournamentMapper::mapToResponse)
+            .orElseThrow();
+    businessMetrics.recordTournamentCreated();
+    return response;
   }
 
   public List<Integer> supportedPlayerCounts() {

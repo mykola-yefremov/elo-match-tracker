@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import com.emt.entity.Player;
 import com.emt.entity.Tournament;
 import com.emt.mapper.TournamentMapper;
+import com.emt.metrics.BusinessMetrics;
 import com.emt.model.exception.TournamentCreationException;
 import com.emt.model.request.CreateTournamentRequest;
 import com.emt.model.response.TournamentResponse;
@@ -36,6 +37,7 @@ class TournamentServiceTest {
   @Mock private PlayerRepository playerRepository;
   @Mock private TournamentRepository tournamentRepository;
   @Spy private TournamentMapper tournamentMapper;
+  @Mock private BusinessMetrics businessMetrics;
   @InjectMocks private TournamentService tournamentService;
 
   @Test
@@ -63,6 +65,7 @@ class TournamentServiceTest {
     assertThat(response.participants())
         .extracting(participant -> participant.seedNumber())
         .containsExactly(1, 2);
+    verify(businessMetrics).recordTournamentCreated();
   }
 
   @Test

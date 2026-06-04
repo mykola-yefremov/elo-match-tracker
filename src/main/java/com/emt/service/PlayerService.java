@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class PlayerService {
 
+  private static final int MATCH_PLAYER_COUNT = 2;
+
   private final PlayerRepository playerRepository;
 
   private final PlayerMapper playerMapper;
@@ -51,7 +53,23 @@ public class PlayerService {
   }
 
   @Transactional
+  public List<Player> getPlayersForRatingUpdate(Long firstPlayerId, Long secondPlayerId) {
+    List<Player> players =
+        playerRepository.findPlayersForUpdate(List.of(firstPlayerId, secondPlayerId));
+    if (players.size() != MATCH_PLAYER_COUNT) {
+      throw new PlayerNotFoundException(missingPlayerId(players, firstPlayerId, secondPlayerId));
+    }
+    return players;
+  }
+
+  @Transactional
   public List<Player> saveWinnerAndLoser(Player winner, Player loser) {
     return playerRepository.saveAll(List.of(winner, loser));
+  }
+
+  private Long missingPlayerId(List<Player> players, Long firstPlayerId, Long secondPlayerId) {
+    return players.stream().noneMatch(player -> player.getPlayerId().equals(firstPlayerId))
+        ? firstPlayerId
+        : secondPlayerId;
   }
 }
