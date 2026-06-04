@@ -14,14 +14,16 @@ The actual MVC behavior is documented here.
 | Tournaments | `http://localhost:8080/tournaments` |
 | Swagger UI | `http://localhost:8080/swagger-ui.html` |
 | Health | `http://localhost:9090/actuator/health` |
+| Build info | `http://localhost:9090/actuator/info` |
 
 ## Headers
 
 | Header | Required | Description |
 | --- | --- | --- |
 | `X-Actor` | No | Used by auditing. If it is missing, the app uses the configured fallback actor, currently `system`. |
+| `X-Correlation-Id` | No | Request tracing id. If it is missing, the app generates one and returns it in the response. |
 
-The header name can be changed with `AUDIT_ACTOR_HEADER`.
+The audit header name can be changed with `AUDIT_ACTOR_HEADER`.
 
 ## Request Blocking
 
