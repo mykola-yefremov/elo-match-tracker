@@ -123,6 +123,7 @@ public class MatchService {
     businessMetrics.recordMatchCancelled();
   }
 
+  @Transactional
   public void recalculateEloRatingsForSubsequentMatches(List<Match> matches) {
     for (Match match : matches) {
       Long winnerId = match.getWinner().getPlayerId();
@@ -150,6 +151,9 @@ public class MatchService {
     return players.stream()
         .filter(player -> player.getPlayerId().equals(playerId))
         .findFirst()
-        .orElseThrow();
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "Player with id %d not found in locked set".formatted(playerId)));
   }
 }

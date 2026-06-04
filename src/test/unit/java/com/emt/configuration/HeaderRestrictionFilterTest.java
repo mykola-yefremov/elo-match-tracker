@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.emt.metrics.BusinessMetrics;
 import jakarta.servlet.FilterChain;
@@ -24,7 +25,8 @@ class HeaderRestrictionFilterTest {
 
   @Test
   void doFilterInternal_withConfiguredHeaderValuePair_shouldRejectRequest() throws Exception {
-    HeaderRestrictionFilter filter = new HeaderRestrictionFilter(restrictionsEnabled(), businessMetrics);
+    HeaderRestrictionFilter filter =
+        new HeaderRestrictionFilter(restrictionsEnabled(), businessMetrics);
     MockHttpServletRequest request = request();
     MockHttpServletResponse response = new MockHttpServletResponse();
     FilterChain filterChain = (request1, response1) -> {};
@@ -33,7 +35,8 @@ class HeaderRestrictionFilterTest {
     filter.doFilter(request, response, filterChain);
 
     assertThat(response.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
-    assertThat(response.getErrorMessage()).isEqualTo("Request rejected by header restriction policy");
+    assertThat(response.getErrorMessage())
+        .isEqualTo("Request rejected by header restriction policy");
     verify(businessMetrics).recordRestrictedRequest();
   }
 
@@ -56,7 +59,8 @@ class HeaderRestrictionFilterTest {
 
   @Test
   void doFilterInternal_withDifferentHeaderValue_shouldContinueRequest() throws Exception {
-    HeaderRestrictionFilter filter = new HeaderRestrictionFilter(restrictionsEnabled(), businessMetrics);
+    HeaderRestrictionFilter filter =
+        new HeaderRestrictionFilter(restrictionsEnabled(), businessMetrics);
     MockHttpServletRequest request = request();
     MockHttpServletResponse response = new MockHttpServletResponse();
     TrackingFilterChain filterChain = new TrackingFilterChain();
@@ -66,6 +70,7 @@ class HeaderRestrictionFilterTest {
 
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(filterChain.invoked).isTrue();
+    verifyNoInteractions(businessMetrics);
   }
 
   @Test
@@ -82,12 +87,14 @@ class HeaderRestrictionFilterTest {
 
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(filterChain.invoked).isTrue();
+    verifyNoInteractions(businessMetrics);
   }
 
   @Test
   void doFilterInternal_withRepeatedHeaderValues_shouldRejectWhenAnyValueMatches()
       throws Exception {
-    HeaderRestrictionFilter filter = new HeaderRestrictionFilter(restrictionsEnabled(), businessMetrics);
+    HeaderRestrictionFilter filter =
+        new HeaderRestrictionFilter(restrictionsEnabled(), businessMetrics);
     MockHttpServletRequest request = request();
     MockHttpServletResponse response = new MockHttpServletResponse();
     FilterChain filterChain = (request1, response1) -> {};
@@ -101,7 +108,8 @@ class HeaderRestrictionFilterTest {
 
   @Test
   void doFilterInternal_withoutMatchingRule_shouldDelegateToFilterChain() throws Exception {
-    HeaderRestrictionFilter filter = new HeaderRestrictionFilter(restrictionsEnabled(), businessMetrics);
+    HeaderRestrictionFilter filter =
+        new HeaderRestrictionFilter(restrictionsEnabled(), businessMetrics);
     MockHttpServletRequest request = request();
     MockHttpServletResponse response = new MockHttpServletResponse();
     FilterChain filterChain = mock(FilterChain.class);
@@ -113,7 +121,8 @@ class HeaderRestrictionFilterTest {
 
   @Test
   void doFilterInternal_withRestrictedRequest_shouldNotDelegateToFilterChain() throws Exception {
-    HeaderRestrictionFilter filter = new HeaderRestrictionFilter(restrictionsEnabled(), businessMetrics);
+    HeaderRestrictionFilter filter =
+        new HeaderRestrictionFilter(restrictionsEnabled(), businessMetrics);
     MockHttpServletRequest request = request();
     MockHttpServletResponse response = new MockHttpServletResponse();
     FilterChain filterChain = mock(FilterChain.class);
@@ -142,7 +151,8 @@ class HeaderRestrictionFilterTest {
     private boolean invoked;
 
     @Override
-    public void doFilter(jakarta.servlet.ServletRequest request, jakarta.servlet.ServletResponse response) {
+    public void doFilter(
+        jakarta.servlet.ServletRequest request, jakarta.servlet.ServletResponse response) {
       invoked = true;
     }
   }

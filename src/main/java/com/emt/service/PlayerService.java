@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -52,7 +53,7 @@ public class PlayerService {
         .orElseThrow(() -> new PlayerNotFoundException(playerId));
   }
 
-  @Transactional
+  @Transactional(propagation = Propagation.MANDATORY)
   public List<Player> getPlayersForRatingUpdate(Long firstPlayerId, Long secondPlayerId) {
     List<Player> players =
         playerRepository.findPlayersForUpdate(List.of(firstPlayerId, secondPlayerId));

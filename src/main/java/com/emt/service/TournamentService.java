@@ -9,6 +9,7 @@ import com.emt.model.response.TournamentResponse;
 import com.emt.model.tournament.SeedingMode;
 import com.emt.repository.PlayerRepository;
 import com.emt.repository.TournamentRepository;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -38,7 +39,7 @@ public class TournamentService {
   public TournamentResponse createTournament(CreateTournamentRequest request) {
     validateRequest(request);
 
-    List<Player> players = selectedPlayers(request.playerIds());
+    List<Player> players = new ArrayList<>(selectedPlayers(request.playerIds()));
     if (request.seedingMode() == SeedingMode.RANDOM) {
       // Random seeding is intentionally non-deterministic; saved seeds are the source of truth.
       Collections.shuffle(players);
