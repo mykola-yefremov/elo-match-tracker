@@ -2,15 +2,24 @@ name: CI
 
 on:
   pull_request:
+    branches:
+      - main
   push:
     branches:
-      - develop
       - main
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
-    name: Build and test
+  quality-gate:
+    name: Quality gate
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -20,8 +29,95 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: '17'
           cache: gradle
 
-      - name: Run quality gate
-        run: ./gradlew check
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Run checks
+        run: ./gradlew clean check --no-daemon
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-gate-reports
+          path: |
+            build/reports/tests
+            build/reports/jacoco
+            build/reports/pmd
+            build/reports/checkstyle
+
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v4
+
+  docker-validation:
+    name: Docker image validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Build local Docker image
+        run: ./gradlew jibDockerBuild --no-daemon
+
+      - name: Inspect generated image
+        run: docker image inspect elo-match-tracker:latest >/dev/null
+
+  end-to-end:
+    name: End-to-end tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs:
+      - quality-gate
+      - docker-validation
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Run end-to-end tests
+        run: ./gradlew end2end --no-daemon
+
+      - name: Upload end-to-end reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: end-to-end-reports
+          path: build/reports/tests/end2end
