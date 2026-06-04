@@ -1,55 +1,114 @@
 # Architecture
 
-Elo Match Tracker is a layered Spring Boot application. The current interface is server-rendered MVC, while the core business logic is kept in services so a REST API can be added later without rewriting the domain flow.
+This project is built as a small layered Spring Boot application.
+The UI is MVC/Thymeleaf, but the domain logic is kept in services so it can be reused if a REST API is added later.
 
-## Main Flow
+## Layers
 
-1. A player is registered through `PlayerController`.
-2. `PlayerService` validates nickname uniqueness and persists the player.
-3. A match is reported through `MatchController`.
-4. `MatchService` loads both players, calculates the Elo delta, updates both ratings, and saves the match in one transaction.
-5. Match history is read with fetch joins to avoid lazy-loading each player row individually.
-6. Match history can be filtered by one player or by a head-to-head pair through query parameters.
+| Layer | Responsibility |
+| --- | --- |
+| Controller | Handles web requests, prepares model attributes, returns views or redirects. |
+| Service | Contains business rules and transaction boundaries. |
+| Mapper | Converts between entities, requests, and response models. |
+| Repository | Reads and writes database rows through Spring Data JPA. |
+| Entity | Represents persisted data and relationships. |
+
+## Player Flow
+
+1. `PlayerController` receives the registration form.
+2. `PlayerService` checks nickname uniqueness.
+3. `PlayerMapper` creates the entity.
+4. `PlayerRepository` saves it.
+5. The controller redirects back to `/players`.
+
+Players start with rating `1200`.
+
+## Match Flow
+
+1. `MatchController` receives winner and loser ids.
+2. `MatchService` checks that both ids are different.
+3. The service loads both players.
+4. Elo rating changes are calculated.
+5. Both player ratings and the match row are saved in one transaction.
+6. The controller redirects back to the leaderboard.
+
+Match history queries use fetch joins for winner and loser. This avoids N+1 queries when rendering the history page.
 
 ## Match Cancellation
 
-Cancelling a match is treated as a data correction. The service reverses the cancelled match rating delta, recalculates later matches involving either player, updates stored deltas, and removes the cancelled match.
+Cancelling a match is handled as a data correction.
 
-This keeps current player ratings consistent with the visible match history.
+The service reverts the cancelled match delta, recalculates later matches for the affected players,
+updates stored deltas, and removes the cancelled match.
+This is more work than a delete, but it keeps Elo ratings correct because Elo depends on match order.
+
+## Tournament Setup
+
+Tournaments follow the same structure as players and matches.
+
+`TournamentController` renders the page and submits create requests.
+`TournamentService` validates the roster and applies seeding rules.
+`TournamentMapper` builds the `Tournament` entity and maps saved tournaments back to response models.
+
+Validation rules:
+
+- player count must be one of `2`, `4`, `8`, or `16`
+- selected players must not be empty
+- selected players must be unique
+- selected roster size must match `playerCount`
+
+Manual seeding keeps the submitted player order.
+Random seeding shuffles the selected players before assigning seed numbers.
+
+The current feature stores setup data only.
+Tournament match generation and bracket progression are future work.
 
 ## Auditing
 
-Player and match inserts, updates, and deletes are audited through Hibernate event listeners instead of ad-hoc service calls. That keeps audit behavior close to persistence and makes it harder for future features to accidentally bypass it.
+Player and match inserts, updates, and deletes are audited through Hibernate event listeners.
 
-Each revision stores the affected entity type, entity id, operation, actor, timestamp, and a JSONB snapshot of the entity state. Player references inside match snapshots are stored as ids, not nested entity graphs, so the audit payload remains small and stable.
+The audit listener writes a separate `audit_revision` row with entity name, entity id, operation, actor, timestamp, and a JSONB snapshot.
+For matches, player references are stored as ids instead of nested objects to keep snapshots stable.
 
-The actor is read from a configurable request header (`AUDIT_ACTOR_HEADER`, default `X-Actor`). Non-web flows fall back to `AUDIT_FALLBACK_ACTOR`.
+The actor comes from the configured request header, currently `X-Actor`. If the header is missing, the fallback actor is used.
 
 ## Request Filtering
 
-Request header restrictions are enforced by a `OncePerRequestFilter` registered at the highest servlet filter precedence. The filter reads validated `request-filter.header-restrictions` properties and rejects a request with `403 Forbidden` when any configured rule matches a request header name and exact value.
+`HeaderRestrictionFilter` runs before controllers.
+It checks configured header-value rules and rejects matching requests with `403 Forbidden`.
 
-The default rules list is empty, keeping local development open by default while allowing deployments to block known clients, scanners, or integration paths through configuration only. Restricted header values are not written to logs; rejection logs include the URI, method, and matching header name.
+The rules list is empty by default, which keeps local development simple.
+Deployments can add rules through configuration without changing Java code.
 
 ## Persistence
 
-The application uses PostgreSQL with Flyway migrations. Rating values are stored as `NUMERIC(10, 2)` to keep deterministic decimal behavior and avoid floating point drift.
+The app uses PostgreSQL and Flyway.
 
-Indexes exist for the match fields used by history and recalculation queries:
+Important database choices:
 
-- `winner_id`
-- `loser_id`
-- `created_at`
-
-Audit revisions are indexed by entity, operation, and creation time to support timeline and troubleshooting queries.
+- ratings use `NUMERIC(10, 2)` instead of floating point numbers
+- match history fields are indexed for filtering and recalculation
+- audit revisions are indexed for lookup by entity, operation, and creation time
+- tournament participants have unique constraints for player membership and seed number per tournament
 
 ## Profiles
 
-The default profile is optimized for local development. The `prod` profile disables Swagger UI and keeps actuator exposure limited.
+The default profile is for local development.
+
+The `prod` profile disables Swagger UI and keeps actuator exposure limited.
+This is safer for a deployed environment while still allowing local API discovery during development.
 
 ## Testing Strategy
 
-- Unit tests cover service behavior and Elo calculations.
-- Integration tests use Testcontainers PostgreSQL for controller and service flows.
-- End-to-end tests exercise the containerized application stack.
-- JaCoCo enforces a minimum 70% unit-test coverage gate.
+The project has several test layers:
+
+- unit tests for service behavior and small components
+- integration tests with Testcontainers PostgreSQL
+- end-to-end tests for the containerized app stack
+- JaCoCo coverage verification with a 70% minimum instruction coverage rule
+
+The usual command before opening a PR is:
+
+```bash
+./gradlew clean check
+```
