@@ -193,12 +193,15 @@ curl -i -X POST \
   http://localhost:8080/tournaments
 ```
 
+Manual seeding keeps the submitted player order.
+Random seeding is intentionally non-deterministic; once saved, seed numbers are the source of truth.
+
 Current limitation: tournaments store setup and participants only.
 Match generation, results, and bracket progression are planned separately.
 
 ## Elo Rules
 
-Every new player starts with rating `1200`.
+Every new player starts with a rating of `1200`.
 
 Expected winner score:
 

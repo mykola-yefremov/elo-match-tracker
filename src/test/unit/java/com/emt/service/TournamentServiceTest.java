@@ -19,7 +19,6 @@ import com.emt.repository.TournamentRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -31,6 +30,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class TournamentServiceTest {
 
+  private static final String FIRST_PLAYER = "FirstPlayer";
+  private static final String SECOND_PLAYER = "SecondPlayer";
+
   @Mock private PlayerRepository playerRepository;
   @Mock private TournamentRepository tournamentRepository;
   @Spy private TournamentMapper tournamentMapper;
@@ -38,12 +40,12 @@ class TournamentServiceTest {
 
   @Test
   void createTournament_withManualSeeding_ShouldPersistSeededRoster() {
-    Player firstPlayer = player(1L, "FirstPlayer");
-    Player secondPlayer = player(2L, "SecondPlayer");
+    Player firstPlayer = player(1L, FIRST_PLAYER);
+    Player secondPlayer = player(2L, SECOND_PLAYER);
     CreateTournamentRequest request = tournamentRequest(List.of(1L, 2L));
 
-    given(playerRepository.findById(1L)).willReturn(Optional.of(firstPlayer));
-    given(playerRepository.findById(2L)).willReturn(Optional.of(secondPlayer));
+    given(playerRepository.findAllById(List.of(1L, 2L)))
+        .willReturn(List.of(secondPlayer, firstPlayer));
     given(tournamentRepository.save(org.mockito.ArgumentMatchers.any(Tournament.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -57,7 +59,7 @@ class TournamentServiceTest {
     assertThat(savedTournament.getParticipants()).hasSize(2);
     assertThat(savedTournament.getParticipants())
         .extracting(participant -> participant.getPlayer().getNickname())
-        .containsExactly("FirstPlayer", "SecondPlayer");
+        .containsExactly(FIRST_PLAYER, SECOND_PLAYER);
     assertThat(response.participants())
         .extracting(participant -> participant.seedNumber())
         .containsExactly(1, 2);
@@ -89,6 +91,16 @@ class TournamentServiceTest {
   }
 
   @Test
+  void createTournament_withUnknownPlayer_ShouldThrowException() {
+    given(playerRepository.findAllById(List.of(1L, 2L)))
+        .willReturn(List.of(player(1L, FIRST_PLAYER)));
+
+    assertThatThrownBy(() -> tournamentService.createTournament(tournamentRequest(List.of(1L, 2L))))
+        .isInstanceOf(TournamentCreationException.class)
+        .hasMessageContaining("Players not found with ids: [2]");
+  }
+
+  @Test
   void createTournament_withRosterSizeMismatch_ShouldThrowException() {
     assertThatThrownBy(
             () ->
@@ -108,7 +120,7 @@ class TournamentServiceTest {
 
   @Test
   void getAllTournaments_ShouldReturnTournamentResponses() {
-    Player firstPlayer = player(1L, "FirstPlayer");
+    Player firstPlayer = player(1L, FIRST_PLAYER);
     Tournament tournament =
         Tournament.builder()
             .tournamentId(10L)

@@ -8,7 +8,6 @@ import com.emt.model.response.TournamentResponse;
 import com.emt.model.tournament.SeedingMode;
 import com.emt.repository.PlayerRepository;
 import com.emt.repository.TournamentRepository;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -39,6 +38,7 @@ public class TournamentService {
 
     List<Player> players = selectedPlayers(request.playerIds());
     if (request.seedingMode() == SeedingMode.RANDOM) {
+      // Random seeding is intentionally non-deterministic; saved seeds are the source of truth.
       Collections.shuffle(players);
     }
 
@@ -81,15 +81,28 @@ public class TournamentService {
   }
 
   private List<Player> selectedPlayers(List<Long> playerIds) {
-    List<Player> players = new ArrayList<>();
-    for (Long playerId : playerIds) {
-      Player player =
-          playerRepository
-              .findById(playerId)
-              .orElseThrow(
-                  () -> new TournamentCreationException("Player not found with id " + playerId));
-      players.add(player);
+    List<Player> foundPlayers = playerRepository.findAllById(playerIds);
+    validateAllPlayersExist(playerIds, foundPlayers);
+
+    return playerIds.stream().map(playerId -> selectedPlayer(foundPlayers, playerId)).toList();
+  }
+
+  private void validateAllPlayersExist(List<Long> playerIds, List<Player> foundPlayers) {
+    List<Long> missingPlayerIds =
+        playerIds.stream().filter(playerId -> playerNotFound(foundPlayers, playerId)).toList();
+    if (!missingPlayerIds.isEmpty()) {
+      throw new TournamentCreationException("Players not found with ids: " + missingPlayerIds);
     }
-    return players;
+  }
+
+  private boolean playerNotFound(List<Player> players, Long playerId) {
+    return players.stream().noneMatch(player -> player.getPlayerId().equals(playerId));
+  }
+
+  private Player selectedPlayer(List<Player> players, Long playerId) {
+    return players.stream()
+        .filter(player -> player.getPlayerId().equals(playerId))
+        .findFirst()
+        .orElseThrow();
   }
 }

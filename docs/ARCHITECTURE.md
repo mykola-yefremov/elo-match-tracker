@@ -21,7 +21,7 @@ The UI is MVC/Thymeleaf, but the domain logic is kept in services so it can be r
 4. `PlayerRepository` saves it.
 5. The controller redirects back to `/players`.
 
-Players start with rating `1200`.
+Players start with a rating of `1200`.
 
 ## Match Flow
 
@@ -58,7 +58,7 @@ Validation rules:
 - selected roster size must match `playerCount`
 
 Manual seeding keeps the submitted player order.
-Random seeding shuffles the selected players before assigning seed numbers.
+Random seeding is intentionally non-deterministic; once saved, seed numbers are the source of truth.
 
 The current feature stores setup data only.
 Tournament match generation and bracket progression are future work.
@@ -67,10 +67,12 @@ Tournament match generation and bracket progression are future work.
 
 Player and match inserts, updates, and deletes are audited through Hibernate event listeners.
 
-The audit listener writes a separate `audit_revision` row with entity name, entity id, operation, actor, timestamp, and a JSONB snapshot.
+The audit listener writes a separate `audit_revision` row with entity name, entity id, operation,
+actor, timestamp, and a JSONB snapshot.
 For matches, player references are stored as ids instead of nested objects to keep snapshots stable.
 
-The actor comes from the configured request header, currently `X-Actor`. If the header is missing, the fallback actor is used.
+The actor comes from the configured request header, currently `X-Actor`.
+If the header is missing, the fallback actor is used.
 
 ## Request Filtering
 
