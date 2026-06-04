@@ -1,18 +1,23 @@
 # Elo Match Tracker
 
-Elo Match Tracker is a Java 17 Spring Boot application for tracking 1v1 matches and keeping player ratings consistent with the Elo ranking system.
+Elo Match Tracker is a small Spring Boot project for registering players, reporting 1v1 match results,
+and keeping player ratings updated with the Elo formula.
 
-The project is intentionally small, but built like a production service: database migrations, layered tests, Testcontainers integration checks, container image support, health endpoints, and a 70% JaCoCo coverage gate.
+I built it as an MVC application first, so the main interface is server-rendered with Thymeleaf.
+The service layer is separated from controllers, so adding a REST API later should not require rewriting the core logic.
 
-## Highlights
+## What The App Does
 
-- Server-rendered UI for player rankings and match history
-- Elo rating calculation with match cancellation and rating rollback
-- PostgreSQL persistence with Flyway migrations
-- Integration tests backed by Testcontainers
-- Gradle quality gate with JaCoCo coverage verification
-- Docker Compose setup for local development
-- Production profile with restricted actuator and disabled Swagger UI
+- Register players with an initial Elo rating of `1200`.
+- Report match results and update both players in one transaction.
+- Cancel matches and repair later rating history.
+- Filter match history by one player or by a pair of players.
+- Create tournament setups with roster size, seeding mode, game format, scoring, and bracket type.
+- Store audit revisions for player and match changes.
+- Add correlation ids to requests for easier log tracing.
+- Expose basic business metrics through Actuator.
+- Use row locking for safer concurrent Elo rating updates.
+- Optionally block requests by configured header-value pairs.
 
 ## Tech Stack
 
@@ -24,112 +29,40 @@ The project is intentionally small, but built like a production service: databas
 - Flyway
 - Gradle
 - JUnit 5, Mockito, AssertJ, Testcontainers
-- Jib for container image builds
+- JaCoCo, Checkstyle, PMD
+- Micrometer and Spring Boot Actuator
+- Jib for Docker image builds
+- GitHub Actions
+- Spring Boot build info
 
 ## Project Structure
 
 ```text
 src/main/java/com/emt
-├── configuration   # MVC exception handling and OpenAPI configuration
-├── controller      # UI endpoints
+├── audit           # Hibernate audit listener and actor resolution
+├── configuration   # MVC errors, OpenAPI, request filtering
+├── controller      # Thymeleaf MVC endpoints
 ├── entity          # JPA entities
-├── mapper          # entity/DTO mapping
-├── model           # requests, responses, exceptions
+├── mapper          # entity/request/response mapping
+├── model           # requests, responses, enums, exceptions
 ├── repository      # Spring Data repositories
-└── service         # business logic and Elo rating updates
+└── service         # business rules and transactions
 ```
 
-## Getting Started
-
-Start PostgreSQL:
-
-```bash
-docker compose up -d
-```
-
-Run the application:
-
-```bash
-./gradlew bootRun
-```
-
-Open the UI:
+Useful local links:
 
 ```text
-http://localhost:8080/players
-```
-
-Swagger UI is available locally at:
-
-```text
+http://localhost:8080/matches
+http://localhost:8080/tournaments
 http://localhost:8080/swagger-ui.html
+http://localhost:9090/actuator/health
+http://localhost:9090/actuator/info
+http://localhost:9090/actuator/metrics
 ```
-
-## Configuration
-
-The application reads database settings from environment variables with local defaults:
-
-```text
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=elt_database
-DB_USERNAME=elt_user
-DB_PASSWORD=elt_pass
-DB_SCHEMA=app_elo_match_tracker
-```
-
-For production, run with:
-
-```bash
-SPRING_PROFILES_ACTIVE=prod ./gradlew bootRun
-```
-
-The production profile disables Swagger UI and keeps actuator exposure limited to health and info endpoints.
-
-## Tests
-
-Run unit tests:
-
-```bash
-./gradlew unit
-```
-
-Run integration tests:
-
-```bash
-./gradlew integration
-```
-
-Run the quality gate:
-
-```bash
-./gradlew check
-```
-
-The quality gate verifies unit tests and enforces at least 70% JaCoCo instruction coverage.
-
-## Database
-
-Flyway migrations live in:
-
-```text
-src/main/resources/db/migration
-```
-
-Current migrations create player and match tables, store Elo rating deltas for match cancellation, and add indexes for match history queries.
-
-## Container Image
-
-Build a local Docker image with Jib:
-
-```bash
-./gradlew jibDockerBuild
-```
-
-The image name is assembled from `repository` and `serviceName` in `gradle.properties`.
 
 ## Documentation
 
+- [API and Domain Notes](docs/API.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
@@ -137,7 +70,8 @@ The image name is assembled from `repository` and `serviceName` in `gradle.prope
 
 ## Roadmap
 
-- Add a separate REST API layer for external clients
-- Add player search and pagination
-- Add match notes and optional game modes
-- Add authentication for administrative actions
+- Add a separate JSON REST API for external clients.
+- Add player search and pagination.
+- Add match notes and optional game modes.
+- Add tournament result tracking and bracket progression.
+- Add authentication for admin actions.
