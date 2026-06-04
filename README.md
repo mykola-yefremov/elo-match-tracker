@@ -52,16 +52,6 @@ http://localhost:8080/swagger-ui.html
 http://localhost:9090/actuator/health
 ```
 
-## Docker Image
-
-Build a local image with Jib:
-
-```bash
-./gradlew jibDockerBuild
-```
-
-The image name comes from `repository` and `serviceName` in `gradle.properties`.
-
 ## Documentation
 
 - [API and Domain Notes](docs/API.md)
