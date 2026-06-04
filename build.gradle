@@ -16,6 +16,7 @@ java {
 
 springBoot {
     mainClass = 'com.emt.Entrypoint'
+    buildInfo()
 }
 
 jacoco {
@@ -189,6 +190,6 @@ jib {
         image = "${repository}/${serviceName}"
     }
     from {
-        image = "eclipse-temurin:17.0.6_10-jre-alpine"
+        image = "eclipse-temurin:17.0.6_10-jre-alpine@sha256:e39db8ba89a39ccd1224490e4bbfc9e3bdbc4493ac849523f2aa8a52f5b42ad9"
     }
 }

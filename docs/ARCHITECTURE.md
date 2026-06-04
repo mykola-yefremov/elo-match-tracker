@@ -27,7 +27,7 @@ Players start with a rating of `1200`.
 
 1. `MatchController` receives winner and loser ids.
 2. `MatchService` checks that both ids are different.
-3. The service loads both players.
+3. The service loads both players with write locks.
 4. Elo rating changes are calculated.
 5. Both player ratings and the match row are saved in one transaction.
 6. The controller redirects back to the leaderboard.
@@ -74,10 +74,15 @@ For matches, player references are stored as ids instead of nested objects to ke
 The actor comes from the configured request header, currently `X-Actor`.
 If the header is missing, the fallback actor is used.
 
-## Request Filtering
+## Request Correlation And Filtering
 
-`HeaderRestrictionFilter` runs before controllers.
+`CorrelationIdFilter` runs before application filters.
+It reads `X-Correlation-Id` when present, generates one when missing, adds it to the response,
+and stores it in the logging MDC.
+
+`HeaderRestrictionFilter` runs after correlation id setup.
 It checks configured header-value rules and rejects matching requests with `403 Forbidden`.
+Rejected requests increment a business metric.
 
 The rules list is empty by default, which keeps local development simple.
 Deployments can add rules through configuration without changing Java code.
@@ -89,6 +94,8 @@ The app uses PostgreSQL and Flyway.
 Important database choices:
 
 - ratings use `NUMERIC(10, 2)` instead of floating point numbers
+- player rows have a version column for persistence-level concurrency tracking
+- rating updates use pessimistic locks for the affected players
 - match history fields are indexed for filtering and recalculation
 - audit revisions are indexed for lookup by entity, operation, and creation time
 - tournament participants have unique constraints for player membership and seed number per tournament
@@ -99,6 +106,14 @@ The default profile is for local development.
 
 The `prod` profile disables Swagger UI and keeps actuator exposure limited.
 This is safer for a deployed environment while still allowing local API discovery during development.
+
+## CI And Build Validation
+
+GitHub Actions runs the Gradle quality gate on pull requests to `main`.
+The workflow also reviews dependency changes, runs end-to-end tests, and validates that Jib can build the Docker image.
+
+Spring Boot build info is generated during the Gradle build and exposed through `/actuator/info`.
+The Jib base image is pinned by digest so container builds are more reproducible.
 
 ## Testing Strategy
 
@@ -113,4 +128,11 @@ The usual command before opening a PR is:
 
 ```bash
 ./gradlew clean check
+```
+
+For infrastructure or container changes, also run:
+
+```bash
+./gradlew end2end
+./gradlew jibDockerBuild
 ```

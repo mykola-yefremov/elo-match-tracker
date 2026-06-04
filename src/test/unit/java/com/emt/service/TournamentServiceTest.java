@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import com.emt.entity.Player;
 import com.emt.entity.Tournament;
 import com.emt.mapper.TournamentMapper;
+import com.emt.metrics.BusinessMetrics;
 import com.emt.model.exception.TournamentCreationException;
 import com.emt.model.request.CreateTournamentRequest;
 import com.emt.model.response.TournamentResponse;
@@ -36,6 +37,7 @@ class TournamentServiceTest {
   @Mock private PlayerRepository playerRepository;
   @Mock private TournamentRepository tournamentRepository;
   @Spy private TournamentMapper tournamentMapper;
+  @Mock private BusinessMetrics businessMetrics;
   @InjectMocks private TournamentService tournamentService;
 
   @Test
@@ -63,6 +65,30 @@ class TournamentServiceTest {
     assertThat(response.participants())
         .extracting(participant -> participant.seedNumber())
         .containsExactly(1, 2);
+    verify(businessMetrics).recordTournamentCreated();
+  }
+
+  @Test
+  void createTournament_withRandomSeeding_ShouldRecordMetricsAndPersistSeededRoster() {
+    Player firstPlayer = player(1L, FIRST_PLAYER);
+    Player secondPlayer = player(2L, SECOND_PLAYER);
+    CreateTournamentRequest request = tournamentRequest(List.of(1L, 2L), SeedingMode.RANDOM);
+
+    given(playerRepository.findAllById(List.of(1L, 2L)))
+        .willReturn(List.of(firstPlayer, secondPlayer));
+    given(tournamentRepository.save(org.mockito.ArgumentMatchers.any(Tournament.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
+
+    TournamentResponse response = tournamentService.createTournament(request);
+
+    assertThat(response.participants()).hasSize(2);
+    assertThat(response.participants())
+        .extracting(participant -> participant.seedNumber())
+        .containsExactly(1, 2);
+    assertThat(response.participants())
+        .extracting(participant -> participant.nickname())
+        .containsExactlyInAnyOrder(FIRST_PLAYER, SECOND_PLAYER);
+    verify(businessMetrics).recordTournamentCreated();
   }
 
   @Test
@@ -151,10 +177,15 @@ class TournamentServiceTest {
   }
 
   private CreateTournamentRequest tournamentRequest(List<Long> playerIds) {
+    return tournamentRequest(playerIds, SeedingMode.MANUAL);
+  }
+
+  private CreateTournamentRequest tournamentRequest(
+      List<Long> playerIds, SeedingMode seedingMode) {
     return CreateTournamentRequest.builder()
         .name(" Summer Finals ")
         .playerCount(2)
-        .seedingMode(SeedingMode.MANUAL)
+        .seedingMode(seedingMode)
         .gameFormat(GameFormat.BO3)
         .winningPoints(11)
         .bracketType(BracketType.SINGLE_ELIMINATION)

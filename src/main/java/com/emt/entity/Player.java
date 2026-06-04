@@ -24,4 +24,14 @@ public class Player {
   @NotNull private String nickname;
   @NotNull @Builder.Default private BigDecimal eloRating = new BigDecimal("1200");
   @NotNull private Instant registeredAt;
+
+  @Version @Builder.Default private Long version = 0L;
+
+  public Player(Long playerId, String nickname, BigDecimal eloRating, Instant registeredAt) {
+    this.playerId = playerId;
+    this.nickname = nickname;
+    this.eloRating = eloRating;
+    this.registeredAt = registeredAt;
+    this.version = 0L;
+  }
 }

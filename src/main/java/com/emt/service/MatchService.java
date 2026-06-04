@@ -8,6 +8,7 @@ import static java.math.RoundingMode.HALF_UP;
 import com.emt.entity.Match;
 import com.emt.entity.Player;
 import com.emt.mapper.MatchMapper;
+import com.emt.metrics.BusinessMetrics;
 import com.emt.model.exception.IdenticalPlayersException;
 import com.emt.model.exception.MatchNotFoundException;
 import com.emt.model.request.CreateMatchRequest;
@@ -28,6 +29,7 @@ public class MatchService {
   private final MatchRepository matchRepository;
   private final MatchMapper matchMapper;
   private final PlayerService playerService;
+  private final BusinessMetrics businessMetrics;
 
   @Transactional(readOnly = true)
   public List<MatchResponse> getAllMatches() {
@@ -56,15 +58,20 @@ public class MatchService {
       throw new IdenticalPlayersException("A match cannot be created with identical players.");
     }
 
-    Player winner = playerService.getPlayerById(request.winnerId());
-    Player loser = playerService.getPlayerById(request.loserId());
+    List<Player> players =
+        playerService.getPlayersForRatingUpdate(request.winnerId(), request.loserId());
+    Player winner = playerById(players, request.winnerId());
+    Player loser = playerById(players, request.loserId());
 
     BigDecimal winnerRatingChange = updateEloRatings(winner, loser);
 
-    return Optional.of(matchMapper.mapToEntity(winner, loser, winnerRatingChange))
-        .map(matchRepository::save)
-        .map(matchMapper::mapToResponse)
-        .orElseThrow();
+    MatchResponse response =
+        Optional.of(matchMapper.mapToEntity(winner, loser, winnerRatingChange))
+            .map(matchRepository::save)
+            .map(matchMapper::mapToResponse)
+            .orElseThrow();
+    businessMetrics.recordMatchCreated();
+    return response;
   }
 
   public BigDecimal updateEloRatings(Player winner, Player loser) {
@@ -94,8 +101,11 @@ public class MatchService {
     Match matchToCancel =
         matchRepository.findById(matchId).orElseThrow(() -> new MatchNotFoundException(matchId));
 
-    Player winner = matchToCancel.getWinner();
-    Player loser = matchToCancel.getLoser();
+    Long winnerId = matchToCancel.getWinner().getPlayerId();
+    Long loserId = matchToCancel.getLoser().getPlayerId();
+    List<Player> players = playerService.getPlayersForRatingUpdate(winnerId, loserId);
+    Player winner = playerById(players, winnerId);
+    Player loser = playerById(players, loserId);
     BigDecimal winnerRatingChange = matchToCancel.getWinnerRatingChange();
 
     winner.setEloRating(winner.getEloRating().subtract(winnerRatingChange));
@@ -105,17 +115,22 @@ public class MatchService {
 
     List<Match> subsequentMatches =
         matchRepository.findMatchesByPlayersAfter(
-            matchToCancel.getCreatedAt(), winner.getPlayerId(), loser.getPlayerId());
+            matchToCancel.getCreatedAt(), winnerId, loserId);
 
     recalculateEloRatingsForSubsequentMatches(subsequentMatches);
 
     matchRepository.deleteById(matchId);
+    businessMetrics.recordMatchCancelled();
   }
 
+  @Transactional
   public void recalculateEloRatingsForSubsequentMatches(List<Match> matches) {
     for (Match match : matches) {
-      Player winner = playerService.getPlayerById(match.getWinner().getPlayerId());
-      Player loser = playerService.getPlayerById(match.getLoser().getPlayerId());
+      Long winnerId = match.getWinner().getPlayerId();
+      Long loserId = match.getLoser().getPlayerId();
+      List<Player> players = playerService.getPlayersForRatingUpdate(winnerId, loserId);
+      Player winner = playerById(players, winnerId);
+      Player loser = playerById(players, loserId);
 
       winner.setEloRating(winner.getEloRating().subtract(match.getWinnerRatingChange()));
       loser.setEloRating(loser.getEloRating().add(match.getWinnerRatingChange()));
@@ -130,5 +145,15 @@ public class MatchService {
 
   private List<MatchResponse> mapMatches(List<Match> matches) {
     return matches.stream().map(matchMapper::mapToResponse).toList();
+  }
+
+  private Player playerById(List<Player> players, Long playerId) {
+    return players.stream()
+        .filter(player -> player.getPlayerId().equals(playerId))
+        .findFirst()
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "Player with id %d not found in locked set".formatted(playerId)));
   }
 }

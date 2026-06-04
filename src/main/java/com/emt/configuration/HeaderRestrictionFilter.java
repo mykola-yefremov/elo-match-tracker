@@ -1,5 +1,6 @@
 package com.emt.configuration;
 
+import com.emt.metrics.BusinessMetrics;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,6 +18,7 @@ public class HeaderRestrictionFilter extends OncePerRequestFilter {
   private static final String REJECTION_MESSAGE = "Request rejected by header restriction policy";
 
   private final HeaderRestrictionProperties properties;
+  private final BusinessMetrics businessMetrics;
 
   @Override
   protected void doFilterInternal(
@@ -36,6 +38,7 @@ public class HeaderRestrictionFilter extends OncePerRequestFilter {
       return false;
     }
 
+    businessMetrics.recordRestrictedRequest();
     log.warn(
         "request_rejected_by_header_restriction uri={} method={} header={}",
         request.getRequestURI(),

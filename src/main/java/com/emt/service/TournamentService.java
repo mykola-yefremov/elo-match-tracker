@@ -2,12 +2,14 @@ package com.emt.service;
 
 import com.emt.entity.Player;
 import com.emt.mapper.TournamentMapper;
+import com.emt.metrics.BusinessMetrics;
 import com.emt.model.exception.TournamentCreationException;
 import com.emt.model.request.CreateTournamentRequest;
 import com.emt.model.response.TournamentResponse;
 import com.emt.model.tournament.SeedingMode;
 import com.emt.repository.PlayerRepository;
 import com.emt.repository.TournamentRepository;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -24,6 +26,7 @@ public class TournamentService {
   private final PlayerRepository playerRepository;
   private final TournamentRepository tournamentRepository;
   private final TournamentMapper tournamentMapper;
+  private final BusinessMetrics businessMetrics;
 
   @Transactional(readOnly = true)
   public List<TournamentResponse> getAllTournaments() {
@@ -36,16 +39,19 @@ public class TournamentService {
   public TournamentResponse createTournament(CreateTournamentRequest request) {
     validateRequest(request);
 
-    List<Player> players = selectedPlayers(request.playerIds());
+    List<Player> players = new ArrayList<>(selectedPlayers(request.playerIds()));
     if (request.seedingMode() == SeedingMode.RANDOM) {
       // Random seeding is intentionally non-deterministic; saved seeds are the source of truth.
       Collections.shuffle(players);
     }
 
-    return Optional.of(tournamentMapper.mapToEntity(request, players))
-        .map(tournamentRepository::save)
-        .map(tournamentMapper::mapToResponse)
-        .orElseThrow();
+    TournamentResponse response =
+        Optional.of(tournamentMapper.mapToEntity(request, players))
+            .map(tournamentRepository::save)
+            .map(tournamentMapper::mapToResponse)
+            .orElseThrow();
+    businessMetrics.recordTournamentCreated();
+    return response;
   }
 
   public List<Integer> supportedPlayerCounts() {
