@@ -2,10 +2,12 @@ package com.emt.configuration;
 
 import com.emt.controller.MatchController;
 import com.emt.controller.PlayerController;
+import com.emt.controller.TournamentController;
 import com.emt.model.exception.IdenticalPlayersException;
 import com.emt.model.exception.MatchNotFoundException;
 import com.emt.model.exception.PlayerAlreadyExistsException;
 import com.emt.model.exception.PlayerNotFoundException;
+import com.emt.model.exception.TournamentCreationException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.Map;
@@ -21,7 +23,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Slf4j
-@ControllerAdvice(assignableTypes = {PlayerController.class, MatchController.class})
+@ControllerAdvice(assignableTypes = {PlayerController.class, MatchController.class, TournamentController.class})
 public class ExceptionHandlerConfiguration {
 
   private static final String ERROR_ATTRIBUTE = "error";
@@ -82,6 +84,18 @@ public class ExceptionHandlerConfiguration {
     return redirectTargetFor(request);
   }
 
+  @ExceptionHandler(TournamentCreationException.class)
+  public String handleTournamentCreationException(
+      TournamentCreationException ex,
+      HttpServletRequest request,
+      RedirectAttributes redirectAttributes) {
+    redirectAttributes.addFlashAttribute(
+        ERROR_ATTRIBUTE, "Tournament creation failed: " + ex.getMessage());
+    log.warn("tournament_creation_failed uri={} message={}", request.getRequestURI(), ex.getMessage());
+
+    return redirectTargetFor(request);
+  }
+
   private Map<String, String> extractValidationErrors(Exception ex) {
     Map<String, String> errors = new HashMap<>();
     extractBindingResult(ex)
@@ -117,6 +131,9 @@ public class ExceptionHandlerConfiguration {
     }
     if (uri != null && uri.startsWith("/matches")) {
       return "redirect:/matches";
+    }
+    if (uri != null && uri.startsWith("/tournaments")) {
+      return "redirect:/tournaments";
     }
     return "redirect:/players";
   }

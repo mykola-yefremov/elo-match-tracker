@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <link rel="stylesheet" th:href="@{/styles/styles.css}">
+    <title>Tournaments</title>
+</head>
+<body>
+<header class="page-header">
+    <nav class="header-nav">
+        <a class="brand" href="/players">Elo Match Tracker</a>
+        <ul class="header-list">
+            <li class="header-item">
+                <a href="/players" class="header-link">Rankings</a>
+            </li>
+            <li class="header-item">
+                <a href="/matches" class="header-link">Match History</a>
+            </li>
+            <li class="header-item">
+                <a href="/tournaments" class="header-link" aria-current="page">Tournaments</a>
+            </li>
+        </ul>
+    </nav>
+</header>
+
+<main class="page-shell">
+    <section class="hero">
+        <p class="eyebrow">Tournament desk</p>
+        <h1>Tournaments</h1>
+        <p class="hero-copy">Set up brackets, pick match rules, and seed players manually or at random.</p>
+    </section>
+
+    <div class="alert alert-error" th:if="${error}">
+        <p th:text="${error}">Error occurred</p>
+    </div>
+
+    <div class="alert alert-success" th:if="${message}">
+        <p th:text="${message}">Action completed</p>
+    </div>
+
+    <div class="alert alert-error" th:if="${errors}">
+        <p th:each="entry : ${errors}" th:text="${entry.value}">Validation error</p>
+    </div>
+
+    <section class="form-section panel">
+        <div class="section-title">
+            <h2>Create tournament</h2>
+            <span>Select exactly the configured player count</span>
+        </div>
+        <form th:action="@{/tournaments}" th:object="${tournamentRequest}" method="post">
+            <input type="text" th:field="*{name}" placeholder="Tournament name" required>
+
+            <label for="playerCount">Players</label>
+            <select th:field="*{playerCount}" id="playerCount" required>
+                <option value="" disabled selected>Select size</option>
+                <option th:each="count : ${playerCounts}" th:value="${count}" th:text="${count}"></option>
+            </select>
+
+            <label for="seedingMode">Distribution</label>
+            <select th:field="*{seedingMode}" id="seedingMode" required>
+                <option value="" disabled selected>Select seeding</option>
+                <option th:each="mode : ${seedingModes}"
+                        th:value="${mode}"
+                        th:text="${mode.displayName}"></option>
+            </select>
+
+            <label for="gameFormat">Format</label>
+            <select th:field="*{gameFormat}" id="gameFormat" required>
+                <option value="" disabled selected>Select format</option>
+                <option th:each="format : ${gameFormats}"
+                        th:value="${format}"
+                        th:text="${format.displayName}"></option>
+            </select>
+
+            <label for="winningPoints">Points per set</label>
+            <input type="number" th:field="*{winningPoints}" id="winningPoints" min="1" placeholder="11" required>
+
+            <label for="bracketType">Bracket</label>
+            <select th:field="*{bracketType}" id="bracketType" required>
+                <option value="" disabled selected>Select bracket</option>
+                <option th:each="type : ${bracketTypes}"
+                        th:value="${type}"
+                        th:text="${type.displayName}"></option>
+            </select>
+
+            <label for="playerIds">Roster</label>
+            <select th:field="*{playerIds}" id="playerIds" multiple required>
+                <option th:each="player : ${players}"
+                        th:value="${player.playerId}"
+                        th:text="${player.nickname + ' (' + player.eloRating + ')'}"></option>
+            </select>
+
+            <button type="submit">Create tournament</button>
+        </form>
+    </section>
+
+    <section class="panel">
+        <div class="section-title">
+            <h2>Active tournament setups</h2>
+            <span th:text="${#lists.size(tournaments)} + ' tournaments'">0 tournaments</span>
+        </div>
+
+        <div class="empty-state" th:if="${#lists.isEmpty(tournaments)}">
+            <p>No tournaments yet. Create one after registering enough players.</p>
+        </div>
+
+        <div class="tournament-list" th:if="${!#lists.isEmpty(tournaments)}">
+            <article class="tournament-card" th:each="tournament : ${tournaments}">
+                <div class="section-title">
+                    <div>
+                        <h2 th:text="${tournament.name}">Tournament name</h2>
+                        <p class="muted-copy"
+                           th:text="${tournament.playerCount + ' players · ' + tournament.gameFormat.displayName + ' · ' + tournament.winningPoints + ' points · ' + tournament.bracketType.displayName}">
+                            Rules
+                        </p>
+                    </div>
+                    <span th:text="${tournament.seedingMode.displayName} + ' seeding'">Manual seeding</span>
+                </div>
+
+                <ol class="bracket-grid">
+                    <li th:each="participant : ${tournament.participants}" class="bracket-slot">
+                        <span class="rank" th:text="${participant.seedNumber}">1</span>
+                        <span class="nickname" th:text="${participant.nickname}">Player</span>
+                    </li>
+                </ol>
+            </article>
+        </div>
+    </section>
+</main>
+</body>
+</html>

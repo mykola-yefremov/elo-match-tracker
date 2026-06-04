@@ -1,35 +1,33 @@
-# API and Domain Behavior
+# API and Domain Notes
 
-Elo Match Tracker currently exposes a server-rendered MVC interface. The endpoints below return HTML views or redirects rather than JSON response bodies. This keeps the UI simple today while leaving the service layer ready for a dedicated REST API in the future.
+The app currently uses Spring MVC and Thymeleaf. Most endpoints return HTML pages or redirects, not JSON responses.
 
-## Base URLs
+OpenAPI is enabled only as a local helper. Since there are no REST controllers yet, `/v3/api-docs` mainly shows project metadata.
+The actual MVC behavior is documented here.
 
-- Application UI: `http://localhost:8080`
-- Management server: `http://localhost:9090`
-- Swagger UI in local profile: `http://localhost:8080/swagger-ui.html`
+## Local URLs
 
-## OpenAPI and Swagger
+| Page | URL |
+| --- | --- |
+| Players | `http://localhost:8080/players` |
+| Match history | `http://localhost:8080/matches` |
+| Tournaments | `http://localhost:8080/tournaments` |
+| Swagger UI | `http://localhost:8080/swagger-ui.html` |
+| Health | `http://localhost:9090/actuator/health` |
 
-OpenAPI documentation is enabled for local development:
-
-- OpenAPI JSON: `GET /v3/api-docs`
-- Swagger UI: `GET /swagger-ui.html`
-
-Because the current application is server-rendered MVC, the generated OpenAPI document is mainly a local discovery placeholder with project metadata. The MVC routes are documented manually in this file. A future REST layer should expose JSON endpoints through `@RestController` and become the primary OpenAPI contract.
-
-The `prod` profile disables both OpenAPI docs and Swagger UI. This keeps local discovery convenient while avoiding public API documentation exposure in production.
-
-## Request Headers
+## Headers
 
 | Header | Required | Description |
 | --- | --- | --- |
-| `X-Actor` | No | Optional actor identifier used by auditing. The header name is configurable through `AUDIT_ACTOR_HEADER`. Missing or blank values fall back to `AUDIT_FALLBACK_ACTOR`, which defaults to `system`. |
+| `X-Actor` | No | Used by auditing. If it is missing, the app uses the configured fallback actor, currently `system`. |
 
-## Request Filtering
+The header name can be changed with `AUDIT_ACTOR_HEADER`.
 
-Incoming requests can be rejected before controller handling when they contain a configured restricted header-value pair. The filter is enabled by default, but the default rules list is empty, so local behavior is unchanged until rules are added.
+## Request Blocking
 
-Example configuration:
+The app can reject requests when a configured header-value pair is present.
+
+Example:
 
 ```yaml
 request-filter:
@@ -40,86 +38,64 @@ request-filter:
         header-value: legacy-importer
 ```
 
-Filtering semantics:
+Behavior:
 
-- any matching rule rejects the request with `403 Forbidden`
-- header names follow servlet container matching behavior
+- matching requests return `403 Forbidden`
 - header values are matched exactly
-- repeated header values are rejected when any value matches the configured value
-- set `REQUEST_HEADER_RESTRICTIONS_ENABLED=false` to disable the filter without removing rules
+- if a request has repeated header values, any matching value is enough to block it
+- local config has an empty rules list, so nothing is blocked by default
 
-## Player Endpoints
+## Players
 
 ### `GET /players`
 
-Renders the leaderboard page.
+Shows the leaderboard page.
 
-The page includes:
-
-- all registered players sorted by Elo rating descending
-- the player registration form
-- the match reporting form
-
-Successful response:
-
-- Status: `200 OK`
-- View: `elo-ranking`
+The model contains registered players sorted by Elo rating, the player registration form, and the match reporting form.
 
 ### `POST /players/register`
 
-Registers a new player.
+Creates a player.
 
-Form parameters:
+Form fields:
 
-| Name | Required | Description |
+| Name | Required | Notes |
 | --- | --- | --- |
-| `nickname` | Yes | Unique player nickname. Must satisfy the validation constraints from `CreatePlayerRequest`. |
+| `nickname` | Yes | Must be unique. Validation rules are defined in `CreatePlayerRequest`. |
 
-Successful response:
+Success:
 
-- Status: `3xx redirect`
-- Redirect: `/players`
-- Flash message: `Player added successfully!`
-
-Error behavior:
-
-- duplicate nickname redirects back with an error flash message
-- validation errors redirect back with field-level flash errors
+- redirects to `/players`
+- shows `Player added successfully!`
 
 Example:
 
 ```bash
 curl -i -X POST \
-  -H 'X-Actor: portfolio-demo' \
+  -H 'X-Actor: demo-user' \
   -d 'nickname=Alice' \
   http://localhost:8080/players/register
 ```
 
-## Match Endpoints
+## Matches
 
 ### `GET /matches`
 
-Renders the match history page.
+Shows match history.
 
-Query parameters:
+Query params:
 
-| Name | Required | Description |
+| Name | Required | Notes |
 | --- | --- | --- |
-| `playerId` | No | Filters history to matches where the selected player was either winner or loser. |
-| `opponentId` | No | When used with `playerId`, filters to head-to-head matches between both players. When used alone, behaves like a single-player filter. |
+| `playerId` | No | Shows matches where this player is winner or loser. |
+| `opponentId` | No | With `playerId`, shows head-to-head matches. Alone, it behaves like a single-player filter. |
 
-Filtering semantics:
+Filter behavior:
 
-- no filters: show all matches
-- only `playerId`: show all matches involving that player
-- only `opponentId`: show all matches involving that player
-- both ids and different values: show head-to-head matches in either winner/loser direction
-- both ids and the same value: show that player's full match history
-
-Successful response:
-
-- Status: `200 OK`
-- View: `match-history`
+- no params: all matches
+- only one id: all matches for that player
+- two different ids: matches between those two players in either direction
+- same id twice: full history for that player
 
 Examples:
 
@@ -131,26 +107,19 @@ curl -i 'http://localhost:8080/matches?playerId=1&opponentId=2'
 
 ### `POST /matches/report`
 
-Reports a match result and updates both players' Elo ratings in one transaction.
+Reports a match and updates Elo ratings in one transaction.
 
-Form parameters:
+Form fields:
 
-| Name | Required | Description |
+| Name | Required | Notes |
 | --- | --- | --- |
-| `winnerId` | Yes | Player id of the match winner. |
-| `loserId` | Yes | Player id of the match loser. |
+| `winnerId` | Yes | Match winner. |
+| `loserId` | Yes | Match loser. Must be different from winner. |
 
-Successful response:
+Success:
 
-- Status: `3xx redirect`
-- Redirect: `/players`
-- Flash message: `Match reported successfully!`
-
-Error behavior:
-
-- identical winner and loser ids are rejected
-- unknown player ids redirect back with an error flash message
-- validation errors redirect back with field-level flash errors
+- redirects to `/players`
+- shows `Match reported successfully!`
 
 Example:
 
@@ -163,129 +132,131 @@ curl -i -X POST \
 
 ### `POST /matches/cancel`
 
-Cancels a recorded match and repairs affected Elo ratings.
+Cancels a match and repairs affected ratings.
 
-Form parameters:
+Form fields:
 
-| Name | Required | Description |
+| Name | Required | Notes |
 | --- | --- | --- |
-| `matchId` | Yes | Match id to cancel. |
+| `matchId` | Yes | Existing match id. |
 
-Successful response:
+Success:
 
-- Status: `3xx redirect`
-- Redirect: `/matches`
-- Flash message: `Match cancelled successfully!`
+- redirects to `/matches`
+- shows `Match cancelled successfully!`
 
-Error behavior:
+## Tournaments
 
-- unknown match ids redirect back with an error flash message
+### `GET /tournaments`
+
+Shows the tournament setup page.
+
+The page contains:
+
+- tournament creation form
+- player list for seeding
+- existing tournament setups with seed order
+
+### `POST /tournaments`
+
+Creates a tournament setup.
+
+Form fields:
+
+| Name | Required | Notes |
+| --- | --- | --- |
+| `name` | Yes | Tournament name. |
+| `playerCount` | Yes | Supported values: `2`, `4`, `8`, `16`. |
+| `seedingMode` | Yes | `MANUAL` or `RANDOM`. |
+| `gameFormat` | Yes | `BO1`, `BO3`, or `BO5`. |
+| `winningPoints` | Yes | Positive value, for example `11` or `21`. |
+| `bracketType` | Yes | `SINGLE_ELIMINATION` or `ROUND_ROBIN`. |
+| `playerIds` | Yes | Exactly `playerCount` unique ids. Repeated params preserve order for manual seeding. |
+
+Success:
+
+- redirects to `/tournaments`
+- shows `Tournament created successfully!`
 
 Example:
 
 ```bash
 curl -i -X POST \
-  -H 'X-Actor: admin-user' \
-  -d 'matchId=42' \
-  http://localhost:8080/matches/cancel
+  -d 'name=Friday Finals' \
+  -d 'playerCount=2' \
+  -d 'seedingMode=MANUAL' \
+  -d 'gameFormat=BO3' \
+  -d 'winningPoints=11' \
+  -d 'bracketType=SINGLE_ELIMINATION' \
+  -d 'playerIds=1' \
+  -d 'playerIds=2' \
+  http://localhost:8080/tournaments
 ```
 
-## Management Endpoints
+Manual seeding keeps the submitted player order.
+Random seeding is intentionally non-deterministic; once saved, seed numbers are the source of truth.
 
-### `GET /actuator/health`
+Current limitation: tournaments store setup and participants only.
+Match generation, results, and bracket progression are planned separately.
 
-Returns application health from the management server.
+## Elo Rules
 
-Successful response:
+Every new player starts with a rating of `1200`.
 
-- Status: `200 OK`
-- Body includes status such as `UP`
-
-Example:
-
-```bash
-curl -i http://localhost:9090/actuator/health
-```
-
-## Elo Rating Model
-
-Every player starts with an Elo rating of `1200`.
-
-When a match is reported, the service calculates the winner's expected score using the standard Elo probability formula:
+Expected winner score:
 
 ```text
 expectedWinner = 1 / (1 + 10 ^ ((loserRating - winnerRating) / 400))
 ```
 
-The project uses a constant K-factor of `30`:
+The app uses K-factor `30`:
 
 ```text
 winnerRatingChange = 30 * (1 - expectedWinner)
 loserRatingChange = -winnerRatingChange
 ```
 
-Then both ratings are updated in the same transaction:
+Ratings are stored as `NUMERIC(10, 2)` in PostgreSQL. This avoids floating point issues and keeps values readable.
 
-```text
-winner.rating = winner.rating + winnerRatingChange
-loser.rating = loser.rating - winnerRatingChange
-```
+## Match Cancellation
 
-Rating values are persisted as `NUMERIC(10, 2)` in PostgreSQL to avoid floating-point drift.
+Elo is order-sensitive, so cancelling an old match is not just deleting a row.
 
-## Match Cancellation and Rating Repair
+The service:
 
-A match cancellation is treated as a data correction rather than a simple delete.
+1. Loads the cancelled match.
+2. Reverts its rating delta for both players.
+3. Recalculates later matches involving either affected player.
+4. Deletes the cancelled match.
 
-The cancellation flow does three things:
+This keeps the current leaderboard consistent with visible match history.
 
-1. Loads the match being cancelled.
-2. Reverts the stored rating delta for the winner and loser.
-3. Recalculates later matches involving either affected player, then deletes the cancelled match.
+## Auditing
 
-This matters because Elo is order-sensitive. Removing an old result can change the rating context for later matches, so the service repairs the downstream rating history instead of only deleting one row.
+Player and match changes are audited with Hibernate event listeners.
 
-## Match History Filtering
-
-Match history queries use fetch joins for `winner` and `loser` to keep the rendered page from triggering N+1 lazy loading.
-
-The head-to-head filter is direction-agnostic. A request for `playerId=1&opponentId=2` returns both:
-
-- matches where player `1` beat player `2`
-- matches where player `2` beat player `1`
-
-## Auditing Behavior
-
-Mutations for `Player` and `Match` are audited through Hibernate event listeners.
-
-Each audit revision stores:
+Each audit row stores:
 
 - entity name
 - entity id
-- operation (`INSERT`, `UPDATE`, `DELETE`)
-- JSONB snapshot of entity state
-- actor from the configured request header
+- operation: `INSERT`, `UPDATE`, or `DELETE`
+- JSONB snapshot
+- actor from request header
 - timestamp with time zone
 
-Audit writes participate in the same transactional flow as the entity mutation. Match snapshots store player references as ids instead of nested entity graphs, keeping audit payloads compact and stable.
+Tournament setup is not audited yet because the current audit feature was scoped to players and matches.
 
 ## Error Handling
 
-The current MVC controllers use redirect-based error handling:
+This is an MVC app, so errors usually redirect back to a page with flash messages.
 
-- validation errors are stored as flash attributes
-- domain exceptions are shown as flash error messages
-- `/matches/report` errors redirect to `/players`
-- other `/matches` errors redirect to `/matches`
-- player errors redirect to `/players`
+Redirect targets:
 
-Because this is currently an MVC-first application, clients should not expect JSON error payloads from these endpoints.
+| Error area | Redirect |
+| --- | --- |
+| Players | `/players` |
+| Match reporting | `/players` |
+| Match history or cancellation | `/matches` |
+| Tournaments | `/tournaments` |
 
-## Future REST API Notes
-
-The service and repository layers are intentionally separated from MVC controllers. A future REST API can reuse the same business logic while adding:
-
-- JSON request and response models
-- explicit HTTP status codes for domain errors
-- pagination for player and match history queries
-- authentication and authorization controls
+Clients should not expect JSON error bodies from these MVC endpoints.
