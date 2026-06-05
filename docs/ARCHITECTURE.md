@@ -42,13 +42,13 @@ The service reverts the cancelled match delta, recalculates later matches for th
 updates stored deltas, and removes the cancelled match.
 This is more work than a delete, but it keeps Elo ratings correct because Elo depends on match order.
 
-## Tournament Setup
+## Tournament Flow
 
 Tournaments follow the same structure as players and matches.
 
-`TournamentController` renders the page and submits create requests.
-`TournamentService` validates the roster and applies seeding rules.
-`TournamentMapper` builds the `Tournament` entity and maps saved tournaments back to response models.
+`TournamentController` renders the page, submits create requests, starts brackets, and records tournament match winners.
+`TournamentService` owns roster validation, seeding, bracket generation, progression, and completion rules.
+`TournamentMapper` builds tournament setup entities and maps saved tournaments back to response models.
 
 Validation rules:
 
@@ -60,8 +60,14 @@ Validation rules:
 Manual seeding keeps the submitted player order.
 Random seeding is intentionally non-deterministic; once saved, seed numbers are the source of truth.
 
-The current feature stores setup data only.
-Tournament match generation and bracket progression are future work.
+Lifecycle rules:
+
+- tournaments start as `DRAFT`
+- starting a tournament creates pending `TournamentMatch` rows
+- reporting a tournament match also creates a normal Elo match
+- single-elimination winners move into the next round after the whole round is complete
+- round-robin winners are ranked by wins, with seed order as the tie-breaker
+- completed tournaments store the final winner and completion time
 
 ## Auditing
 
@@ -99,6 +105,7 @@ Important database choices:
 - match history fields are indexed for filtering and recalculation
 - audit revisions are indexed for lookup by entity, operation, and creation time
 - tournament participants have unique constraints for player membership and seed number per tournament
+- tournament matches have unique round and match slots per tournament
 
 ## Profiles
 

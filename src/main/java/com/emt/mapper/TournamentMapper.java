@@ -2,8 +2,10 @@ package com.emt.mapper;
 
 import com.emt.entity.Player;
 import com.emt.entity.Tournament;
+import com.emt.entity.TournamentMatch;
 import com.emt.entity.TournamentParticipant;
 import com.emt.model.request.CreateTournamentRequest;
+import com.emt.model.response.TournamentMatchResponse;
 import com.emt.model.response.TournamentParticipantResponse;
 import com.emt.model.response.TournamentResponse;
 import java.time.Instant;
@@ -48,8 +50,14 @@ public class TournamentMapper {
         .gameFormat(tournament.getGameFormat())
         .winningPoints(tournament.getWinningPoints())
         .bracketType(tournament.getBracketType())
+        .status(tournament.getStatus())
+        .winnerId(playerId(tournament.getWinner()))
+        .winnerNickname(nickname(tournament.getWinner()))
         .createdAt(tournament.getCreatedAt())
+        .startedAt(tournament.getStartedAt())
+        .completedAt(tournament.getCompletedAt())
         .participants(mapParticipants(tournament))
+        .matches(mapMatches(tournament))
         .build();
   }
 
@@ -65,5 +73,33 @@ public class TournamentMapper {
         .playerId(participant.getPlayer().getPlayerId())
         .nickname(participant.getPlayer().getNickname())
         .build();
+  }
+
+  private List<TournamentMatchResponse> mapMatches(Tournament tournament) {
+    return tournament.getMatches().stream().map(this::mapMatch).toList();
+  }
+
+  private TournamentMatchResponse mapMatch(TournamentMatch match) {
+    return TournamentMatchResponse.builder()
+        .tournamentMatchId(match.getTournamentMatchId())
+        .roundNumber(match.getRoundNumber())
+        .matchNumber(match.getMatchNumber())
+        .status(match.getStatus())
+        .firstPlayerId(match.getFirstPlayer().getPlayerId())
+        .firstPlayerNickname(match.getFirstPlayer().getNickname())
+        .secondPlayerId(match.getSecondPlayer().getPlayerId())
+        .secondPlayerNickname(match.getSecondPlayer().getNickname())
+        .winnerId(playerId(match.getWinner()))
+        .winnerNickname(nickname(match.getWinner()))
+        .completedAt(match.getCompletedAt())
+        .build();
+  }
+
+  private Long playerId(Player player) {
+    return player == null ? null : player.getPlayerId();
+  }
+
+  private String nickname(Player player) {
+    return player == null ? null : player.getNickname();
   }
 }

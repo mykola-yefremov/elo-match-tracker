@@ -95,7 +95,7 @@
 
     <section class="panel">
         <div class="section-title">
-            <h2>Active tournament setups</h2>
+            <h2>Tournament desk</h2>
             <span th:text="${#lists.size(tournaments)} + ' tournaments'">0 tournaments</span>
         </div>
 
@@ -113,8 +113,20 @@
                             Rules
                         </p>
                     </div>
-                    <span th:text="${tournament.seedingMode.displayName} + ' seeding'">Manual seeding</span>
+                    <div class="tournament-meta">
+                        <span class="status-pill" th:text="${tournament.status.displayName}">Draft</span>
+                        <span th:text="${tournament.seedingMode.displayName} + ' seeding'">Manual seeding</span>
+                    </div>
                 </div>
+
+                <div class="tournament-actions" th:if="${tournament.status.name() == 'DRAFT'}">
+                    <form th:action="@{/tournaments/{id}/start(id=${tournament.tournamentId})}" method="post">
+                        <button type="submit">Start tournament</button>
+                    </form>
+                </div>
+
+                <p class="winner-banner" th:if="${tournament.winnerNickname != null}"
+                   th:text="${'Winner: ' + tournament.winnerNickname}">Winner: Player</p>
 
                 <ol class="bracket-grid">
                     <li th:each="participant : ${tournament.participants}" class="bracket-slot">
@@ -122,6 +134,35 @@
                         <span class="nickname" th:text="${participant.nickname}">Player</span>
                     </li>
                 </ol>
+
+                <div class="match-board" th:if="${!#lists.isEmpty(tournament.matches)}">
+                    <h3>Bracket matches</h3>
+                    <article class="match-card" th:each="match : ${tournament.matches}">
+                        <div>
+                            <p class="match-label"
+                               th:text="${'Round ' + match.roundNumber + ' · Match ' + match.matchNumber}">
+                                Round 1 · Match 1
+                            </p>
+                            <p class="match-players"
+                               th:text="${match.firstPlayerNickname + ' vs ' + match.secondPlayerNickname}">
+                                First vs Second
+                            </p>
+                            <p class="muted-copy" th:if="${match.winnerNickname != null}"
+                               th:text="${'Winner: ' + match.winnerNickname}">Winner: Player</p>
+                        </div>
+                        <form class="winner-actions"
+                              th:if="${match.status.name() == 'PENDING' && tournament.status.name() == 'ACTIVE'}"
+                              th:action="@{/tournaments/matches/{matchId}/report(matchId=${match.tournamentMatchId})}"
+                              method="post">
+                            <button type="submit" name="winnerId" th:value="${match.firstPlayerId}"
+                                    th:text="${match.firstPlayerNickname + ' wins'}">First wins</button>
+                            <button type="submit" name="winnerId" th:value="${match.secondPlayerId}"
+                                    th:text="${match.secondPlayerNickname + ' wins'}">Second wins</button>
+                        </form>
+                        <span class="status-pill" th:if="${match.status.name() == 'COMPLETED'}"
+                              th:text="${match.status.displayName}">Completed</span>
+                    </article>
+                </div>
             </article>
         </div>
     </section>
