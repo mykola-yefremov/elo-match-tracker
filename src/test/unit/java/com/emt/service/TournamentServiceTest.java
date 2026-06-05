@@ -23,16 +23,20 @@ import com.emt.model.tournament.TournamentStatus;
 import com.emt.repository.PlayerRepository;
 import com.emt.repository.TournamentMatchRepository;
 import com.emt.repository.TournamentRepository;
+import com.emt.service.tournament.RoundRobinBracketStrategy;
+import com.emt.service.tournament.SingleEliminationBracketStrategy;
+import com.emt.service.tournament.TournamentMatchFactory;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -44,10 +48,30 @@ class TournamentServiceTest {
   @Mock private PlayerRepository playerRepository;
   @Mock private TournamentRepository tournamentRepository;
   @Mock private TournamentMatchRepository tournamentMatchRepository;
-  @Spy private TournamentMapper tournamentMapper;
   @Mock private MatchService matchService;
   @Mock private BusinessMetrics businessMetrics;
-  @InjectMocks private TournamentService tournamentService;
+
+  private TournamentService tournamentService;
+
+  @BeforeEach
+  void setUp() {
+    Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
+    TournamentMapper tournamentMapper = new TournamentMapper();
+    TournamentMatchFactory tournamentMatchFactory = new TournamentMatchFactory(clock);
+
+    tournamentService =
+        new TournamentService(
+            playerRepository,
+            tournamentRepository,
+            tournamentMatchRepository,
+            tournamentMapper,
+            matchService,
+            businessMetrics,
+            clock,
+            List.of(
+                new SingleEliminationBracketStrategy(clock, tournamentMatchFactory),
+                new RoundRobinBracketStrategy(clock, tournamentMatchFactory)));
+  }
 
   @Test
   void createTournament_withManualSeeding_ShouldPersistSeededRoster() {
@@ -202,6 +226,55 @@ class TournamentServiceTest {
     assertThat(response.matches())
         .extracting(match -> match.roundNumber())
         .containsExactly(1, 1, 2, 2, 3, 3);
+  }
+
+
+  @Test
+  void startTournament_withNonDraftStatus_ShouldThrowException() {
+    Tournament tournament =
+        tournament(
+            13L,
+            2,
+            BracketType.SINGLE_ELIMINATION,
+            List.of(player(1L, FIRST_PLAYER), player(2L, SECOND_PLAYER)));
+    tournament.setStatus(TournamentStatus.ACTIVE);
+
+    given(tournamentRepository.findById(13L)).willReturn(Optional.of(tournament));
+
+    assertThatThrownBy(() -> tournamentService.startTournament(13L))
+        .isInstanceOf(TournamentCreationException.class)
+        .hasMessageContaining("Only draft tournaments can be started.");
+  }
+
+  @Test
+  void startTournament_withExistingMatches_ShouldThrowException() {
+    Player firstPlayer = player(1L, FIRST_PLAYER);
+    Player secondPlayer = player(2L, SECOND_PLAYER);
+    Tournament tournament =
+        tournament(14L, 2, BracketType.SINGLE_ELIMINATION, List.of(firstPlayer, secondPlayer));
+    tournament.getMatches().add(tournamentMatch(21L, tournament, firstPlayer, secondPlayer));
+
+    given(tournamentRepository.findById(14L)).willReturn(Optional.of(tournament));
+
+    assertThatThrownBy(() -> tournamentService.startTournament(14L))
+        .isInstanceOf(TournamentCreationException.class)
+        .hasMessageContaining("Tournament bracket has already been generated.");
+  }
+
+  @Test
+  void startTournament_withIncompleteRoster_ShouldThrowException() {
+    Tournament tournament =
+        tournament(
+            15L,
+            4,
+            BracketType.SINGLE_ELIMINATION,
+            List.of(player(1L, FIRST_PLAYER), player(2L, SECOND_PLAYER)));
+
+    given(tournamentRepository.findById(15L)).willReturn(Optional.of(tournament));
+
+    assertThatThrownBy(() -> tournamentService.startTournament(15L))
+        .isInstanceOf(TournamentCreationException.class)
+        .hasMessageContaining("Tournament roster is incomplete.");
   }
 
   @Test
