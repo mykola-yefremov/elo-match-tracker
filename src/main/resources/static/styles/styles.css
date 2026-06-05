@@ -457,9 +457,13 @@ th {
 }
 
 @media (max-width: 720px) {
-    .match-card,
-    .winner-actions {
+    .match-card {
         grid-template-columns: 1fr;
+        width: 100%;
+    }
+
+    .winner-actions {
+        flex-direction: column;
         width: 100%;
     }
 }
