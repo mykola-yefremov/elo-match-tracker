@@ -3,6 +3,7 @@ package com.emt.model.response;
 import com.emt.model.tournament.BracketType;
 import com.emt.model.tournament.GameFormat;
 import com.emt.model.tournament.SeedingMode;
+import com.emt.model.tournament.TournamentStatus;
 import java.time.Instant;
 import java.util.List;
 import lombok.Builder;
@@ -16,5 +17,11 @@ public record TournamentResponse(
     GameFormat gameFormat,
     Integer winningPoints,
     BracketType bracketType,
+    TournamentStatus status,
+    Long winnerId,
+    String winnerNickname,
     Instant createdAt,
-    List<TournamentParticipantResponse> participants) {}
+    Instant startedAt,
+    Instant completedAt,
+    List<TournamentParticipantResponse> participants,
+    List<TournamentMatchResponse> matches) {}
