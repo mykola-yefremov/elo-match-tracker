@@ -12,7 +12,7 @@ The service layer is separated from controllers, so adding a REST API later shou
 - Report match results and update both players in one transaction.
 - Cancel matches and repair later rating history.
 - Filter match history by one player or by a pair of players.
-- Create tournaments, generate brackets, record results, and finish winners.
+- Create tournaments, generate brackets, record results, and determine winners.
 - Store audit revisions for player and match changes.
 - Add correlation ids to requests for easier log tracing.
 - Expose basic business metrics through Actuator.
