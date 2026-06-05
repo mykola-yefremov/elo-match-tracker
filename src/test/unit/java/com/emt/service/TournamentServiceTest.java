@@ -2,11 +2,14 @@ package com.emt.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 import com.emt.entity.Player;
 import com.emt.entity.Tournament;
+import com.emt.entity.TournamentMatch;
+import com.emt.entity.TournamentParticipant;
 import com.emt.mapper.TournamentMapper;
 import com.emt.metrics.BusinessMetrics;
 import com.emt.model.exception.TournamentCreationException;
@@ -15,11 +18,15 @@ import com.emt.model.response.TournamentResponse;
 import com.emt.model.tournament.BracketType;
 import com.emt.model.tournament.GameFormat;
 import com.emt.model.tournament.SeedingMode;
+import com.emt.model.tournament.TournamentMatchStatus;
+import com.emt.model.tournament.TournamentStatus;
 import com.emt.repository.PlayerRepository;
+import com.emt.repository.TournamentMatchRepository;
 import com.emt.repository.TournamentRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -36,7 +43,9 @@ class TournamentServiceTest {
 
   @Mock private PlayerRepository playerRepository;
   @Mock private TournamentRepository tournamentRepository;
+  @Mock private TournamentMatchRepository tournamentMatchRepository;
   @Spy private TournamentMapper tournamentMapper;
+  @Mock private MatchService matchService;
   @Mock private BusinessMetrics businessMetrics;
   @InjectMocks private TournamentService tournamentService;
 
@@ -144,6 +153,78 @@ class TournamentServiceTest {
         .hasMessageContaining("Expected 4 players");
   }
 
+
+  @Test
+  void startTournament_withSingleElimination_ShouldGenerateSeededFirstRound() {
+    Player firstPlayer = player(1L, "SeedOne");
+    Player secondPlayer = player(2L, "SeedTwo");
+    Player thirdPlayer = player(3L, "SeedThree");
+    Player fourthPlayer = player(4L, "SeedFour");
+    Tournament tournament =
+        tournament(
+            10L,
+            4,
+            BracketType.SINGLE_ELIMINATION,
+            List.of(firstPlayer, secondPlayer, thirdPlayer, fourthPlayer));
+
+    given(tournamentRepository.findById(10L)).willReturn(Optional.of(tournament));
+    given(tournamentRepository.save(any(Tournament.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+    TournamentResponse response = tournamentService.startTournament(10L);
+
+    assertThat(response.status()).isEqualTo(TournamentStatus.ACTIVE);
+    assertThat(response.matches()).hasSize(2);
+    assertThat(response.matches())
+        .extracting(match -> match.firstPlayerNickname() + " vs " + match.secondPlayerNickname())
+        .containsExactly("SeedOne vs SeedFour", "SeedTwo vs SeedThree");
+  }
+
+  @Test
+  void startTournament_withRoundRobin_ShouldGenerateEveryPairAcrossRounds() {
+    Player firstPlayer = player(1L, "RobinOne");
+    Player secondPlayer = player(2L, "RobinTwo");
+    Player thirdPlayer = player(3L, "RobinThree");
+    Player fourthPlayer = player(4L, "RobinFour");
+    Tournament tournament =
+        tournament(
+            11L,
+            4,
+            BracketType.ROUND_ROBIN,
+            List.of(firstPlayer, secondPlayer, thirdPlayer, fourthPlayer));
+
+    given(tournamentRepository.findById(11L)).willReturn(Optional.of(tournament));
+    given(tournamentRepository.save(any(Tournament.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+    TournamentResponse response = tournamentService.startTournament(11L);
+
+    assertThat(response.status()).isEqualTo(TournamentStatus.ACTIVE);
+    assertThat(response.matches()).hasSize(6);
+    assertThat(response.matches())
+        .extracting(match -> match.roundNumber())
+        .containsExactly(1, 1, 2, 2, 3, 3);
+  }
+
+  @Test
+  void reportTournamentMatchResult_withFinalSingleEliminationMatch_ShouldCompleteTournament() {
+    Player firstPlayer = player(1L, FIRST_PLAYER);
+    Player secondPlayer = player(2L, SECOND_PLAYER);
+    Tournament tournament = tournament(12L, 2, BracketType.SINGLE_ELIMINATION, List.of(firstPlayer, secondPlayer));
+    tournament.setStatus(TournamentStatus.ACTIVE);
+    TournamentMatch tournamentMatch = tournamentMatch(20L, tournament, firstPlayer, secondPlayer);
+    tournament.getMatches().add(tournamentMatch);
+
+    given(tournamentMatchRepository.findWithPlayersByTournamentMatchId(20L))
+        .willReturn(Optional.of(tournamentMatch));
+    given(tournamentRepository.save(any(Tournament.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+    TournamentResponse response = tournamentService.reportTournamentMatchResult(20L, 1L);
+
+    assertThat(response.status()).isEqualTo(TournamentStatus.COMPLETED);
+    assertThat(response.winnerNickname()).isEqualTo(FIRST_PLAYER);
+    assertThat(response.matches().get(0).status()).isEqualTo(TournamentMatchStatus.COMPLETED);
+    verify(matchService).createMatch(any());
+  }
+
   @Test
   void getAllTournaments_ShouldReturnTournamentResponses() {
     Player firstPlayer = player(1L, FIRST_PLAYER);
@@ -161,7 +242,7 @@ class TournamentServiceTest {
     tournament
         .getParticipants()
         .add(
-            com.emt.entity.TournamentParticipant.builder()
+            TournamentParticipant.builder()
                 .tournament(tournament)
                 .player(firstPlayer)
                 .seedNumber(1)
@@ -174,6 +255,47 @@ class TournamentServiceTest {
     assertThat(tournaments).hasSize(1);
     assertThat(tournaments.get(0).name()).isEqualTo("Stored Tournament");
     assertThat(tournaments.get(0).participants()).hasSize(1);
+  }
+
+  private Tournament tournament(
+      Long tournamentId, Integer playerCount, BracketType bracketType, List<Player> players) {
+    Tournament tournament =
+        Tournament.builder()
+            .tournamentId(tournamentId)
+            .name("Stored Tournament")
+            .playerCount(playerCount)
+            .seedingMode(SeedingMode.MANUAL)
+            .gameFormat(GameFormat.BO1)
+            .winningPoints(21)
+            .bracketType(bracketType)
+            .createdAt(Instant.now())
+            .build();
+
+    for (int i = 0; i < players.size(); i++) {
+      tournament
+          .getParticipants()
+          .add(
+              TournamentParticipant.builder()
+                  .tournament(tournament)
+                  .player(players.get(i))
+                  .seedNumber(i + 1)
+                  .build());
+    }
+    return tournament;
+  }
+
+  private TournamentMatch tournamentMatch(
+      Long tournamentMatchId, Tournament tournament, Player firstPlayer, Player secondPlayer) {
+    return TournamentMatch.builder()
+        .tournamentMatchId(tournamentMatchId)
+        .tournament(tournament)
+        .roundNumber(1)
+        .matchNumber(1)
+        .firstPlayer(firstPlayer)
+        .secondPlayer(secondPlayer)
+        .status(TournamentMatchStatus.PENDING)
+        .createdAt(Instant.now())
+        .build();
   }
 
   private CreateTournamentRequest tournamentRequest(List<Long> playerIds) {

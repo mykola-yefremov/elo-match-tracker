@@ -16,6 +16,7 @@ import com.emt.model.response.TournamentResponse;
 import com.emt.model.tournament.BracketType;
 import com.emt.model.tournament.GameFormat;
 import com.emt.model.tournament.SeedingMode;
+import com.emt.model.tournament.TournamentStatus;
 import com.emt.repository.TournamentRepository;
 import com.emt.service.PlayerService;
 import com.emt.service.TournamentService;
@@ -109,6 +110,47 @@ class TournamentControllerIT extends ITBase {
     assertThat(tournaments.get(0).participants())
         .extracting(participant -> participant.seedNumber())
         .containsExactly(1, 2);
+  }
+
+
+  @Test
+  void tournamentEngine_ShouldStartAndRecordFinalMatch() throws Exception {
+    Long firstPlayerId = createPlayer("EngineOne");
+    Long secondPlayerId = createPlayer("EngineTwo");
+    TournamentResponse tournament =
+        tournamentService.createTournament(
+            CreateTournamentRequest.builder()
+                .name("Engine Cup")
+                .playerCount(2)
+                .seedingMode(SeedingMode.MANUAL)
+                .gameFormat(GameFormat.BO1)
+                .winningPoints(11)
+                .bracketType(BracketType.SINGLE_ELIMINATION)
+                .playerIds(List.of(firstPlayerId, secondPlayerId))
+                .build());
+
+    mockMvc
+        .perform(post(TOURNAMENTS_PATH + "/" + tournament.tournamentId() + "/start"))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl(TOURNAMENTS_PATH))
+        .andExpect(flash().attribute("message", "Tournament started successfully!"));
+
+    TournamentResponse startedTournament = tournamentService.getAllTournaments().get(0);
+    Long tournamentMatchId = startedTournament.matches().get(0).tournamentMatchId();
+
+    mockMvc
+        .perform(
+            post(TOURNAMENTS_PATH + "/matches/" + tournamentMatchId + "/report")
+                .param("winnerId", String.valueOf(firstPlayerId)))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl(TOURNAMENTS_PATH))
+        .andExpect(flash().attribute("message", "Tournament match recorded successfully!"));
+
+    TournamentResponse completedTournament = tournamentService.getAllTournaments().get(0);
+
+    assertThat(completedTournament.status()).isEqualTo(TournamentStatus.COMPLETED);
+    assertThat(completedTournament.winnerNickname()).isEqualTo("EngineOne");
+    assertThat(completedTournament.matches()).hasSize(1);
   }
 
   @Test
