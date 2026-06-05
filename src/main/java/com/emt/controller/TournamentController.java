@@ -15,7 +15,9 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -48,6 +50,24 @@ public class TournamentController {
       RedirectAttributes redirectAttributes) {
     tournamentService.createTournament(request);
     redirectAttributes.addFlashAttribute("message", "Tournament created successfully!");
+    return "redirect:/tournaments";
+  }
+
+  @PostMapping("/{tournamentId}/start")
+  public String startTournament(
+      @PathVariable Long tournamentId, RedirectAttributes redirectAttributes) {
+    tournamentService.startTournament(tournamentId);
+    redirectAttributes.addFlashAttribute("message", "Tournament started successfully!");
+    return "redirect:/tournaments";
+  }
+
+  @PostMapping("/matches/{tournamentMatchId}/report")
+  public String reportTournamentMatch(
+      @PathVariable Long tournamentMatchId,
+      @RequestParam Long winnerId,
+      RedirectAttributes redirectAttributes) {
+    tournamentService.reportTournamentMatchResult(tournamentMatchId, winnerId);
+    redirectAttributes.addFlashAttribute("message", "Tournament match recorded successfully!");
     return "redirect:/tournaments";
   }
 }
