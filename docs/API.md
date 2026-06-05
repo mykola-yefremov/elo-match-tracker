@@ -157,7 +157,8 @@ The page contains:
 
 - tournament creation form
 - player list for seeding
-- existing tournament setups with seed order
+- saved tournaments with seed order
+- generated tournament matches and result buttons
 
 ### `POST /tournaments`
 
@@ -198,8 +199,36 @@ curl -i -X POST \
 Manual seeding keeps the submitted player order.
 Random seeding is intentionally non-deterministic; once saved, seed numbers are the source of truth.
 
-Current limitation: tournaments store setup and participants only.
-Match generation, results, and bracket progression are planned separately.
+### `POST /tournaments/{tournamentId}/start`
+
+Starts a draft tournament and generates its first playable matches.
+
+Single elimination pairs top seeds against bottom seeds in the first round.
+Round-robin uses a simple rotating schedule so every player meets every other player once.
+
+Success:
+
+- redirects to `/tournaments`
+- shows `Tournament started successfully!`
+
+### `POST /tournaments/matches/{tournamentMatchId}/report`
+
+Records a tournament match winner.
+
+Form fields:
+
+| Name | Required | Notes |
+| --- | --- | --- |
+| `winnerId` | Yes | Must be one of the two players in the tournament match. |
+
+The service also creates a normal match record, so Elo ratings and match history stay consistent.
+When a single-elimination round is complete, winners move into the next round.
+When the final or round-robin schedule is complete, the tournament is marked as completed with a winner.
+
+Success:
+
+- redirects to `/tournaments`
+- shows `Tournament match recorded successfully!`
 
 ## Elo Rules
 
@@ -258,7 +287,7 @@ Redirect targets:
 | --- | --- |
 | Players | `/players` |
 | Match reporting | `/players` |
+| Tournament engine | `/tournaments` |
 | Match history or cancellation | `/matches` |
-| Tournaments | `/tournaments` |
 
 Clients should not expect JSON error bodies from these MVC endpoints.

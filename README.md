@@ -12,7 +12,7 @@ The service layer is separated from controllers, so adding a REST API later shou
 - Report match results and update both players in one transaction.
 - Cancel matches and repair later rating history.
 - Filter match history by one player or by a pair of players.
-- Create tournament setups with roster size, seeding mode, game format, scoring, and bracket type.
+- Create tournaments, generate brackets, record results, and finish winners.
 - Store audit revisions for player and match changes.
 - Add correlation ids to requests for easier log tracing.
 - Expose basic business metrics through Actuator.
@@ -73,5 +73,4 @@ http://localhost:9090/actuator/metrics
 - Add a separate JSON REST API for external clients.
 - Add player search and pagination.
 - Add match notes and optional game modes.
-- Add tournament result tracking and bracket progression.
 - Add authentication for admin actions.
