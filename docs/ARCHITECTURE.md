@@ -1,17 +1,26 @@
 # Architecture
 
 This project is built as a small layered Spring Boot application.
-The UI is MVC/Thymeleaf, but the domain logic is kept in services so it can be reused if a REST API is added later.
+The UI is MVC/Thymeleaf, and the JSON API uses separate REST controllers on top of the same service layer.
 
 ## Layers
 
 | Layer | Responsibility |
 | --- | --- |
-| Controller | Handles web requests, prepares model attributes, returns views or redirects. |
+| Controller | Handles MVC pages and JSON REST requests. |
 | Service | Contains business rules and transaction boundaries. |
 | Mapper | Converts between entities, requests, and response models. |
 | Repository | Reads and writes database rows through Spring Data JPA. |
 | Entity | Represents persisted data and relationships. |
+
+## REST API Flow
+
+REST controllers live under `/api/v1` and call the same services as the MVC controllers.
+This keeps browser behavior and API behavior aligned while allowing different response formats.
+
+API responses use dedicated JSON error handling in `RestApiExceptionHandler`.
+MVC errors still use redirects and flash attributes.
+Swagger UI documents the REST controllers, while MVC controllers are hidden from OpenAPI.
 
 ## Player Flow
 
