@@ -12,6 +12,6 @@ import org.springframework.context.annotation.Configuration;
             title = "Elo Match Tracker",
             version = "0.0.1",
             description =
-                "Server-rendered Elo ranking application. REST endpoints can be added later on top of the existing service layer."),
+                "JSON REST API for players, matches, and tournaments. The Thymeleaf UI is still available separately."),
     servers = @Server(url = "http://localhost:8080", description = "Local server"))
 public class OpenApiConfiguration {}

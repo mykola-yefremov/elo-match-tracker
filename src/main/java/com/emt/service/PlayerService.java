@@ -47,6 +47,11 @@ public class PlayerService {
   }
 
   @Transactional(readOnly = true)
+  public PlayerResponse getPlayerResponseById(Long playerId) {
+    return playerMapper.mapToResponse(getPlayerById(playerId));
+  }
+
+  @Transactional(readOnly = true)
   public Player getPlayerById(Long playerId) {
     return playerRepository
         .findById(playerId)
