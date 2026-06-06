@@ -8,6 +8,7 @@ import com.emt.model.tournament.GameFormat;
 import com.emt.model.tournament.SeedingMode;
 import com.emt.service.PlayerService;
 import com.emt.service.TournamentService;
+import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+@Hidden
 @Controller
 @RequestMapping("/tournaments")
 @RequiredArgsConstructor

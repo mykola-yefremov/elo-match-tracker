@@ -5,6 +5,7 @@ import com.emt.model.response.MatchResponse;
 import com.emt.model.response.PlayerResponse;
 import com.emt.service.MatchService;
 import com.emt.service.PlayerService;
+import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+@Hidden
 @Controller
 @RequestMapping("/matches")
 @RequiredArgsConstructor

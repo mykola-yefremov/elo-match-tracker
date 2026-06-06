@@ -11,6 +11,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +35,11 @@ public class PlayerService {
         .toList();
   }
 
+  @Transactional(readOnly = true)
+  public Page<PlayerResponse> getPlayers(Pageable pageable) {
+    return playerRepository.findAllByRating(pageable).map(playerMapper::mapToResponse);
+  }
+
   @Transactional
   public PlayerResponse createPlayer(CreatePlayerRequest request) {
     if (playerRepository.existsByNickname(request.nickname())) {
@@ -44,6 +51,11 @@ public class PlayerService {
         .map(playerRepository::save)
         .map(playerMapper::mapToResponse)
         .orElseThrow();
+  }
+
+  @Transactional(readOnly = true)
+  public PlayerResponse getPlayerResponseById(Long playerId) {
+    return playerMapper.mapToResponse(getPlayerById(playerId));
   }
 
   @Transactional(readOnly = true)
