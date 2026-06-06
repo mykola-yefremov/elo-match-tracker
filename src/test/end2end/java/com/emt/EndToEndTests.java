@@ -7,50 +7,65 @@ import static java.net.http.HttpResponse.BodyHandlers.ofString;
 import static java.time.Duration.of;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.testcontainers.containers.wait.strategy.Wait.*;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.DockerComposeContainer;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.MountableFile;
 
 @Slf4j
 @Testcontainers
 public class EndToEndTests {
 
-  private static final String APP = "app_1";
   private static final Integer API_PORT = 8080;
   private static final Integer SERVICE_PORT = 9090;
-
-  private static final String POSTGRES = "postgres_1";
   private static final Integer POSTGRES_PORT = 5432;
+  private static final Network NETWORK = Network.newNetwork();
 
   @Container
   @SuppressWarnings("resource")
-  private static final DockerComposeContainer<?> COMPOSITION =
-      new DockerComposeContainer<>(new File("src/test/end2end/resources/docker/docker-compose.yml"))
-          .withLocalCompose(true)
-          .withOptions("--compatibility")
-          .withExposedService(APP, API_PORT, forHealthcheck())
-          .withExposedService(APP, SERVICE_PORT)
-          .withExposedService(
-              POSTGRES,
-              POSTGRES_PORT,
-              forLogMessage(".*database system is ready to accept connections.*\\s", 1))
-          .withLogConsumer(POSTGRES, new Slf4jLogConsumer(log).withPrefix(POSTGRES))
-          .withLogConsumer(APP, new Slf4jLogConsumer(log).withPrefix(APP));
+  private static final GenericContainer<?> POSTGRES =
+      new GenericContainer<>("postgres:15.1")
+          .withNetwork(NETWORK)
+          .withNetworkAliases("postgres")
+          .withEnv("POSTGRES_PASSWORD", "postgres")
+          .withCopyFileToContainer(
+              MountableFile.forClasspathResource("docker/database/init_db.sql"),
+              "/docker-entrypoint-initdb.d/init_db.sql")
+          .withExposedPorts(POSTGRES_PORT)
+          .waitingFor(Wait.forLogMessage(".*database system is ready to accept connections.*\\s", 1))
+          .withLogConsumer(new Slf4jLogConsumer(log).withPrefix("postgres"));
+
+  @Container
+  @SuppressWarnings("resource")
+  private static final GenericContainer<?> APP =
+      new GenericContainer<>("docker.io/library/elo-match-tracker:latest")
+          .dependsOn(POSTGRES)
+          .withNetwork(NETWORK)
+          .withEnv("SPRING_PROFILES_ACTIVE", "e2etest")
+          .withExposedPorts(API_PORT, SERVICE_PORT)
+          .waitingFor(
+              Wait.forHttp("/actuator/health")
+                  .forPort(SERVICE_PORT)
+                  .forStatusCode(200)
+                  .withStartupTimeout(Duration.ofSeconds(90)))
+          .withLogConsumer(new Slf4jLogConsumer(log).withPrefix("app"));
 
   @Test
   void containerIsRunning() {
-    assertThat(COMPOSITION.getContainerByServiceName(APP).orElseThrow().isHealthy()).isTrue();
+    assertThat(APP.isRunning()).isTrue();
+    assertThat(POSTGRES.isRunning()).isTrue();
   }
 
   @Test
@@ -83,15 +98,7 @@ public class EndToEndTests {
 
   private HttpResponse<String> getString(String path, Integer port) {
     try {
-      URI uri =
-          new URI(
-              "http",
-              null,
-              COMPOSITION.getServiceHost(APP, port),
-              COMPOSITION.getServicePort(APP, port),
-              path,
-              null,
-              null);
+      URI uri = new URI("http", null, APP.getHost(), APP.getMappedPort(port), path, null, null);
 
       HttpRequest request = newBuilder(uri).GET().timeout(of(10, SECONDS)).build();
       log.debug("Request: {}", request);
@@ -113,15 +120,7 @@ public class EndToEndTests {
       String path, Integer port, String body, String contentType) {
 
     try {
-      URI uri =
-          new URI(
-              "http",
-              null,
-              COMPOSITION.getServiceHost(APP, port),
-              COMPOSITION.getServicePort(APP, port),
-              path,
-              null,
-              null);
+      URI uri = new URI("http", null, APP.getHost(), APP.getMappedPort(port), path, null, null);
 
       HttpRequest request =
           newBuilder(uri)
