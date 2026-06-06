@@ -68,9 +68,14 @@ public class TournamentService {
     return response;
   }
 
+  @Transactional(readOnly = true)
+  public TournamentResponse getTournamentById(Long tournamentId) {
+    return tournamentMapper.mapToResponse(getTournamentEntity(tournamentId));
+  }
+
   @Transactional
   public TournamentResponse startTournament(Long tournamentId) {
-    Tournament tournament = getTournament(tournamentId);
+    Tournament tournament = getTournamentEntity(tournamentId);
     validateTournamentCanStart(tournament);
 
     bracketStrategy(tournament.getBracketType()).createInitialMatches(tournament);
@@ -105,7 +110,7 @@ public class TournamentService {
     return SUPPORTED_PLAYER_COUNTS;
   }
 
-  private Tournament getTournament(Long tournamentId) {
+  private Tournament getTournamentEntity(Long tournamentId) {
     return tournamentRepository
         .findById(tournamentId)
         .orElseThrow(() -> new TournamentCreationException("Tournament not found: " + tournamentId));
