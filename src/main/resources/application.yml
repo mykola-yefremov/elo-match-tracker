@@ -6,6 +6,15 @@ dbPassword: ${DB_PASSWORD:elt_pass}
 dbApplicationName: ${spring.application.name}
 dbSchema: ${DB_SCHEMA:app_elo_match_tracker}
 
+audit:
+  actor-header: ${AUDIT_ACTOR_HEADER:X-Actor}
+  fallback-actor: ${AUDIT_FALLBACK_ACTOR:system}
+
+request-filter:
+  header-restrictions:
+    enabled: ${REQUEST_HEADER_RESTRICTIONS_ENABLED:true}
+    rules: []
+
 spring:
   application:
     name: elo_match_tracker
@@ -30,7 +39,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
   endpoint:
     health:
       show-details: when_authorized

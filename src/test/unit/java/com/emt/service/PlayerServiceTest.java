@@ -26,6 +26,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class PlayerServiceTest {
 
   private static final String NICKNAME = "topOneDeadlocker";
+  private static final BigDecimal DEFAULT_RATING = new BigDecimal("1200");
 
   @Mock private PlayerRepository playerRepository;
   @Mock private PlayerMapper playerMapper;
@@ -69,11 +70,11 @@ class PlayerServiceTest {
   void getAllPlayers_WhenPlayersExist_ShouldReturnPlayersSortedByRatingDescending() {
     Instant registeredAt = Instant.now();
     Player strongerPlayer = new Player(2L, "strongerPlayer", new BigDecimal("1400"), registeredAt);
-    Player weakerPlayer = new Player(1L, "weakerPlayer", new BigDecimal("1200"), registeredAt);
+    Player weakerPlayer = new Player(1L, "weakerPlayer", DEFAULT_RATING, registeredAt);
     PlayerResponse strongerResponse =
         new PlayerResponse(2L, "strongerPlayer", new BigDecimal("1400"), registeredAt);
     PlayerResponse weakerResponse =
-        new PlayerResponse(1L, "weakerPlayer", new BigDecimal("1200"), registeredAt);
+        new PlayerResponse(1L, "weakerPlayer", DEFAULT_RATING, registeredAt);
 
     given(playerRepository.findAll()).willReturn(List.of(weakerPlayer, strongerPlayer));
     given(playerMapper.mapToResponse(strongerPlayer)).willReturn(strongerResponse);
@@ -82,6 +83,28 @@ class PlayerServiceTest {
     List<PlayerResponse> players = playerService.getAllPlayers();
 
     assertThat(players).containsExactly(strongerResponse, weakerResponse);
+  }
+
+  @Test
+  void getPlayersForRatingUpdate_WhenBothPlayersExist_ShouldReturnLockedPlayers() {
+    Player firstPlayer = new Player(1L, "firstPlayer", DEFAULT_RATING, Instant.now());
+    Player secondPlayer = new Player(2L, "secondPlayer", DEFAULT_RATING, Instant.now());
+    given(playerRepository.findPlayersForUpdate(List.of(1L, 2L)))
+        .willReturn(List.of(firstPlayer, secondPlayer));
+
+    List<Player> players = playerService.getPlayersForRatingUpdate(1L, 2L);
+
+    assertThat(players).containsExactly(firstPlayer, secondPlayer);
+  }
+
+  @Test
+  void getPlayersForRatingUpdate_WhenPlayerIsMissing_ShouldThrowException() {
+    Player firstPlayer = new Player(1L, "firstPlayer", DEFAULT_RATING, Instant.now());
+    given(playerRepository.findPlayersForUpdate(List.of(1L, 2L))).willReturn(List.of(firstPlayer));
+
+    assertThatThrownBy(() -> playerService.getPlayersForRatingUpdate(1L, 2L))
+        .isInstanceOf(PlayerNotFoundException.class)
+        .hasMessageContaining("Player with id 2 not found");
   }
 
   @Test
