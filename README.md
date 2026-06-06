@@ -4,7 +4,7 @@ Elo Match Tracker is a small Spring Boot project for registering players, report
 and keeping player ratings updated with the Elo formula.
 
 I built it as an MVC application first, so the main interface is server-rendered with Thymeleaf.
-The service layer is separated from controllers, so adding a REST API later should not require rewriting the core logic.
+The same service layer now also powers a JSON REST API under `/api/v1`.
 
 ## What The App Does
 
@@ -23,7 +23,7 @@ The service layer is separated from controllers, so adding a REST API later shou
 
 - Java 17
 - Spring Boot 3
-- Spring MVC and Thymeleaf
+- Spring MVC, REST controllers, and Thymeleaf
 - Spring Data JPA
 - PostgreSQL
 - Flyway
@@ -41,7 +41,7 @@ The service layer is separated from controllers, so adding a REST API later shou
 src/main/java/com/emt
 ├── audit           # Hibernate audit listener and actor resolution
 ├── configuration   # MVC errors, OpenAPI, request filtering
-├── controller      # Thymeleaf MVC endpoints
+├── controller      # Thymeleaf MVC endpoints and REST API controllers
 ├── entity          # JPA entities
 ├── mapper          # entity/request/response mapping
 ├── model           # requests, responses, enums, exceptions
@@ -54,6 +54,9 @@ Useful local links:
 ```text
 http://localhost:8080/matches
 http://localhost:8080/tournaments
+http://localhost:8080/api/v1/players
+http://localhost:8080/api/v1/matches
+http://localhost:8080/api/v1/tournaments
 http://localhost:8080/swagger-ui.html
 http://localhost:9090/actuator/health
 http://localhost:9090/actuator/info
@@ -70,7 +73,6 @@ http://localhost:9090/actuator/metrics
 
 ## Roadmap
 
-- Add a separate JSON REST API for external clients.
 - Add player search and pagination.
 - Add match notes and optional game modes.
 - Add authentication for admin actions.

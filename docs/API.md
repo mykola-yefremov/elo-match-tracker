@@ -1,9 +1,12 @@
 # API and Domain Notes
 
-The app currently uses Spring MVC and Thymeleaf. Most endpoints return HTML pages or redirects, not JSON responses.
+The app has two entry points:
 
-OpenAPI is enabled only as a local helper. Since there are no REST controllers yet, `/v3/api-docs` mainly shows project metadata.
-The actual MVC behavior is documented here.
+- server-rendered MVC pages for people using the browser
+- JSON REST endpoints under `/api/v1` for programmatic clients
+
+Swagger UI is available locally at `/swagger-ui.html` and documents the REST controllers.
+MVC controllers are intentionally hidden from Swagger so the API docs stay focused.
 
 ## Local URLs
 
@@ -12,6 +15,9 @@ The actual MVC behavior is documented here.
 | Players | `http://localhost:8080/players` |
 | Match history | `http://localhost:8080/matches` |
 | Tournaments | `http://localhost:8080/tournaments` |
+| REST players | `http://localhost:8080/api/v1/players` |
+| REST matches | `http://localhost:8080/api/v1/matches` |
+| REST tournaments | `http://localhost:8080/api/v1/tournaments` |
 | Swagger UI | `http://localhost:8080/swagger-ui.html` |
 | Health | `http://localhost:9090/actuator/health` |
 | Build info | `http://localhost:9090/actuator/info` |
@@ -46,6 +52,88 @@ Behavior:
 - header values are matched exactly
 - if a request has repeated header values, any matching value is enough to block it
 - local config has an empty rules list, so nothing is blocked by default
+
+## JSON REST API
+
+REST endpoints return JSON and use the existing service layer, so UI behavior and API behavior stay consistent.
+List endpoints accept pagination parameters: `page` and `size`.
+Responses use this shape:
+
+```json
+{
+  "content": [],
+  "page": 0,
+  "size": 20,
+  "totalElements": 0,
+  "totalPages": 0,
+  "first": true,
+  "last": true
+}
+```
+
+### Players API
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/api/v1/players` | List players by Elo rating. |
+| `GET` | `/api/v1/players/{playerId}` | Get one player. |
+| `POST` | `/api/v1/players` | Create a player. |
+
+Create example:
+
+```bash
+curl -i -X POST   -H 'Content-Type: application/json'   -d '{"nickname":"Alice"}'   http://localhost:8080/api/v1/players
+```
+
+### Matches API
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/api/v1/matches` | List match history. Supports `playerId` and `opponentId`. |
+| `POST` | `/api/v1/matches` | Report a match and update Elo ratings. |
+| `DELETE` | `/api/v1/matches/{matchId}` | Cancel a match and repair rating history. |
+
+Report example:
+
+```bash
+curl -i -X POST   -H 'Content-Type: application/json'   -d '{"winnerId":1,"loserId":2}'   http://localhost:8080/api/v1/matches
+```
+
+### Tournaments API
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/api/v1/tournaments` | List tournaments. |
+| `GET` | `/api/v1/tournaments/{tournamentId}` | Get one tournament. |
+| `POST` | `/api/v1/tournaments` | Create a draft tournament. |
+| `POST` | `/api/v1/tournaments/{tournamentId}/start` | Start a tournament and generate matches. |
+| `POST` | `/api/v1/tournaments/matches/{tournamentMatchId}/result` | Report a tournament match result. |
+
+Tournament result example:
+
+```bash
+curl -i -X POST   -H 'Content-Type: application/json'   -d '{"winnerId":1}'   http://localhost:8080/api/v1/tournaments/matches/10/result
+```
+
+### REST Error Responses
+
+API errors return JSON instead of redirects.
+Validation errors include a field-level `validationErrors` map.
+
+```json
+{
+  "timestamp": "2026-01-01T00:00:00Z",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation failed",
+  "path": "/api/v1/players",
+  "validationErrors": {
+    "nickname": "must not be blank"
+  }
+}
+```
+
+## MVC Pages
 
 ## Players
 
