@@ -18,6 +18,10 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +45,11 @@ public class MatchService {
     return mapMatches(findMatchesForHistory(playerId, opponentId));
   }
 
+  @Transactional(readOnly = true)
+  public Page<MatchResponse> getMatchHistory(Long playerId, Long opponentId, Pageable pageable) {
+    return findMatchesForHistory(playerId, opponentId, newestFirst(pageable)).map(matchMapper::mapToResponse);
+  }
+
   private List<Match> findMatchesForHistory(Long playerId, Long opponentId) {
     if (playerId == null && opponentId == null) {
       return matchRepository.findAllWithPlayers();
@@ -50,6 +59,17 @@ public class MatchService {
       return matchRepository.findMatchesByPlayer(selectedPlayerId);
     }
     return matchRepository.findMatchesBetweenPlayers(playerId, opponentId);
+  }
+
+  private Page<Match> findMatchesForHistory(Long playerId, Long opponentId, Pageable pageable) {
+    if (playerId == null && opponentId == null) {
+      return matchRepository.findAllWithPlayers(pageable);
+    }
+    if (playerId == null || opponentId == null || playerId.equals(opponentId)) {
+      Long selectedPlayerId = playerId == null ? opponentId : playerId;
+      return matchRepository.findMatchesByPlayer(selectedPlayerId, pageable);
+    }
+    return matchRepository.findMatchesBetweenPlayers(playerId, opponentId, pageable);
   }
 
   @Transactional
@@ -141,6 +161,11 @@ public class MatchService {
 
       matchRepository.save(match);
     }
+  }
+
+  private Pageable newestFirst(Pageable pageable) {
+    return PageRequest.of(
+        pageable.getPageNumber(), pageable.getPageSize(), Sort.by("createdAt").descending());
   }
 
   private List<MatchResponse> mapMatches(List<Match> matches) {

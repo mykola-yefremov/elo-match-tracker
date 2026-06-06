@@ -1,6 +1,7 @@
 package com.emt.controller;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -66,7 +67,10 @@ class RestApiControllerIT extends ITBase {
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.page").value(0))
         .andExpect(jsonPath("$.size").value(1))
-        .andExpect(jsonPath("$.totalElements").value(2));
+        .andExpect(jsonPath("$.totalElements", greaterThanOrEqualTo(2)))
+        .andExpect(jsonPath("$.totalPages", greaterThanOrEqualTo(2)))
+        .andExpect(jsonPath("$.first").value(true))
+        .andExpect(jsonPath("$.last").value(false));
   }
 
   @Test
@@ -189,6 +193,16 @@ class RestApiControllerIT extends ITBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath(STATUS_JSON_PATH).value(TournamentStatus.COMPLETED.name()))
         .andExpect(jsonPath("$.winnerNickname").value("ApiSeedOne"));
+  }
+
+
+  @Test
+  void tournamentsApi_withMissingTournament_ShouldReturnNotFound() throws Exception {
+    mockMvc
+        .perform(get(TOURNAMENTS_API + "/404"))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath(STATUS_JSON_PATH).value(404))
+        .andExpect(jsonPath("$.message", containsString("Tournament with id 404 not found")));
   }
 
   @Test

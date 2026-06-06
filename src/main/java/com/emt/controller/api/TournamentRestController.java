@@ -33,7 +33,7 @@ public class TournamentRestController {
   @Operation(summary = "List tournaments", description = "Returns tournaments with participants and matches.")
   public PageResponse<TournamentResponse> getTournaments(
       @ParameterObject @PageableDefault(size = 20) Pageable pageable) {
-    return ApiPagination.page(tournamentService.getAllTournaments(), pageable);
+    return PageResponse.from(tournamentService.getTournaments(pageable));
   }
 
   @GetMapping("/{tournamentId}")

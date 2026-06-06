@@ -32,7 +32,7 @@ public class PlayerRestController {
   @Operation(summary = "List players", description = "Returns players ordered by Elo rating.")
   public PageResponse<PlayerResponse> getPlayers(
       @ParameterObject @PageableDefault(size = 20) Pageable pageable) {
-    return ApiPagination.page(playerService.getAllPlayers(), pageable);
+    return PageResponse.from(playerService.getPlayers(pageable));
   }
 
   @GetMapping("/{playerId}")
