@@ -3,6 +3,8 @@ package com.emt.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -19,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 @RequiredArgsConstructor
 public class MatchControllerIT extends ITBase {
@@ -26,10 +29,13 @@ public class MatchControllerIT extends ITBase {
   private static final String MATCH_HISTORY_PATH = "/matches";
   private static final String MATCH_HISTORY_VIEW = "match-history";
   private static final String MATCHES_ATTRIBUTE = "matches";
+  private static final String MATCH_CANCEL_PATH = "/matches/cancel";
+  private static final String MATCH_REPORT_PATH = "/matches/report";
   private static final String OPPONENT_ID_PARAM = "opponentId";
   private static final String PLAYER_ID_PARAM = "playerId";
   private static final String SELECTED_OPPONENT_ID_ATTRIBUTE = "selectedOpponentId";
   private static final String SELECTED_PLAYER_ID_ATTRIBUTE = "selectedPlayerId";
+  private static final String ADMIN_USERNAME = "admin";
 
   private final MockMvc mockMvc;
   private final PlayerService playerService;
@@ -130,7 +136,7 @@ public class MatchControllerIT extends ITBase {
 
     mockMvc
         .perform(
-            post("/matches/report")
+            adminPost(MATCH_REPORT_PATH)
                 .param("winnerId", String.valueOf(winner.playerId()))
                 .param("loserId", String.valueOf(loser.playerId())))
         .andExpect(status().is3xxRedirection())
@@ -149,7 +155,7 @@ public class MatchControllerIT extends ITBase {
 
     mockMvc
         .perform(
-            post("/matches/report")
+            adminPost(MATCH_REPORT_PATH)
                 .param("winnerId", String.valueOf(player.playerId()))
                 .param("loserId", String.valueOf(player.playerId())))
         .andExpect(status().is3xxRedirection())
@@ -170,7 +176,7 @@ public class MatchControllerIT extends ITBase {
 
     mockMvc
         .perform(
-            post("/matches/report")
+            adminPost(MATCH_REPORT_PATH)
                 .param("winnerId", String.valueOf(winner.playerId()))
                 .param("loserId", String.valueOf(loser.playerId())))
         .andExpect(redirectedUrl("/players"));
@@ -179,7 +185,7 @@ public class MatchControllerIT extends ITBase {
     Long matchId = matches.get(0).matchId();
 
     mockMvc
-        .perform(post("/matches/cancel").param("matchId", String.valueOf(matchId)))
+        .perform(adminPost(MATCH_CANCEL_PATH).param("matchId", String.valueOf(matchId)))
         .andExpect(redirectedUrl(MATCH_HISTORY_PATH))
         .andExpect(flash().attribute("message", "Match cancelled successfully!"));
 
@@ -189,5 +195,9 @@ public class MatchControllerIT extends ITBase {
 
   private PlayerResponse createPlayer(String nickname) {
     return playerService.createPlayer(CreatePlayerRequest.builder().nickname(nickname).build());
+  }
+
+  private MockHttpServletRequestBuilder adminPost(String path) {
+    return post(path).with(user(ADMIN_USERNAME).roles("ADMIN")).with(csrf());
   }
 }

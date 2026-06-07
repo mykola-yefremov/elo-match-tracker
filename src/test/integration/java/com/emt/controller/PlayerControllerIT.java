@@ -1,5 +1,7 @@
 package com.emt.controller;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -16,6 +18,10 @@ import org.springframework.test.web.servlet.MockMvc;
 @RequiredArgsConstructor
 public class PlayerControllerIT extends ITBase {
 
+  private static final String ADMIN_USERNAME = "admin";
+  private static final String PLAYERS_PATH = "/players";
+  private static final String REGISTER_PATH = "/players/register";
+
   private final MockMvc mockMvc;
   private final PlayerService playerService;
 
@@ -25,7 +31,7 @@ public class PlayerControllerIT extends ITBase {
         playerService.createPlayer(CreatePlayerRequest.builder().nickname("hopondeadlock").build());
 
     mockMvc
-        .perform(get("/players"))
+        .perform(get(PLAYERS_PATH))
         .andExpectAll(
             status().isOk(),
             view().name("elo-ranking"),
@@ -38,10 +44,21 @@ public class PlayerControllerIT extends ITBase {
   @Test
   void createPlayer_withBlankNickname_expectValidationFlashMessage() throws Exception {
     mockMvc
-        .perform(post("/players/register").param("nickname", ""))
+        .perform(
+            post(REGISTER_PATH)
+                .with(user(ADMIN_USERNAME).roles("ADMIN"))
+                .with(csrf())
+                .param("nickname", ""))
         .andExpectAll(
             status().is3xxRedirection(),
-            redirectedUrl("/players"),
+            redirectedUrl(PLAYERS_PATH),
             flash().attributeExists("errors"));
+  }
+
+  @Test
+  void createPlayer_withoutLogin_expectRedirectToLogin() throws Exception {
+    mockMvc
+        .perform(post(REGISTER_PATH).with(csrf()).param("nickname", "guest-player"))
+        .andExpectAll(status().is3xxRedirection(), redirectedUrlPattern("**/login"));
   }
 }

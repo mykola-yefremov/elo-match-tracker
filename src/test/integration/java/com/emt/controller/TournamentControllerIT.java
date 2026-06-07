@@ -1,6 +1,8 @@
 package com.emt.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
@@ -26,10 +28,12 @@ import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 @RequiredArgsConstructor
 class TournamentControllerIT extends ITBase {
 
+  private static final String ADMIN_USERNAME = "admin";
   private static final String TOURNAMENTS_PATH = "/tournaments";
   private static final String TOURNAMENTS_VIEW = "tournaments";
   private static final String START_PATH_SUFFIX = "/start";
@@ -62,7 +66,7 @@ class TournamentControllerIT extends ITBase {
 
     mockMvc
         .perform(
-            post(TOURNAMENTS_PATH)
+            adminPost(TOURNAMENTS_PATH)
                 .param("name", "Friday Finals")
                 .param("playerCount", "2")
                 .param("seedingMode", "MANUAL")
@@ -133,7 +137,7 @@ class TournamentControllerIT extends ITBase {
                 .build());
 
     mockMvc
-        .perform(post(TOURNAMENTS_PATH + "/" + tournament.tournamentId() + START_PATH_SUFFIX))
+        .perform(adminPost(TOURNAMENTS_PATH + "/" + tournament.tournamentId() + START_PATH_SUFFIX))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrl(TOURNAMENTS_PATH))
         .andExpect(flash().attribute(MESSAGE_ATTRIBUTE, "Tournament started successfully!"));
@@ -143,7 +147,7 @@ class TournamentControllerIT extends ITBase {
 
     mockMvc
         .perform(
-            post(TOURNAMENTS_PATH + "/matches/" + tournamentMatchId + "/report")
+            adminPost(TOURNAMENTS_PATH + "/matches/" + tournamentMatchId + "/report")
                 .param("winnerId", String.valueOf(firstPlayerId)))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrl(TOURNAMENTS_PATH))
@@ -176,7 +180,7 @@ class TournamentControllerIT extends ITBase {
                 .build());
 
     mockMvc
-        .perform(post(TOURNAMENTS_PATH + "/" + tournament.tournamentId() + START_PATH_SUFFIX))
+        .perform(adminPost(TOURNAMENTS_PATH + "/" + tournament.tournamentId() + START_PATH_SUFFIX))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrl(TOURNAMENTS_PATH))
         .andExpect(flash().attribute(MESSAGE_ATTRIBUTE, "Tournament started successfully!"));
@@ -189,7 +193,7 @@ class TournamentControllerIT extends ITBase {
       Long winnerId = roundRobinWinnerFor(match, firstPlayerId);
       mockMvc
           .perform(
-              post(TOURNAMENTS_PATH + "/matches/" + match.tournamentMatchId() + "/report")
+              adminPost(TOURNAMENTS_PATH + "/matches/" + match.tournamentMatchId() + "/report")
                   .param("winnerId", String.valueOf(winnerId)))
           .andExpect(status().is3xxRedirection())
           .andExpect(redirectedUrl(TOURNAMENTS_PATH))
@@ -219,11 +223,11 @@ class TournamentControllerIT extends ITBase {
                 .build());
 
     mockMvc
-        .perform(post(TOURNAMENTS_PATH + "/" + tournament.tournamentId() + START_PATH_SUFFIX))
+        .perform(adminPost(TOURNAMENTS_PATH + "/" + tournament.tournamentId() + START_PATH_SUFFIX))
         .andExpect(status().is3xxRedirection());
 
     mockMvc
-        .perform(post(TOURNAMENTS_PATH + "/" + tournament.tournamentId() + START_PATH_SUFFIX))
+        .perform(adminPost(TOURNAMENTS_PATH + "/" + tournament.tournamentId() + START_PATH_SUFFIX))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrl(TOURNAMENTS_PATH))
         .andExpect(
@@ -251,7 +255,7 @@ class TournamentControllerIT extends ITBase {
                 .build());
 
     mockMvc
-        .perform(post(TOURNAMENTS_PATH + "/" + tournament.tournamentId() + START_PATH_SUFFIX))
+        .perform(adminPost(TOURNAMENTS_PATH + "/" + tournament.tournamentId() + START_PATH_SUFFIX))
         .andExpect(status().is3xxRedirection());
 
     TournamentResponse startedTournament = tournamentService.getAllTournaments().get(0);
@@ -259,7 +263,7 @@ class TournamentControllerIT extends ITBase {
 
     mockMvc
         .perform(
-            post(TOURNAMENTS_PATH + "/matches/" + tournamentMatchId + "/report")
+            adminPost(TOURNAMENTS_PATH + "/matches/" + tournamentMatchId + "/report")
                 .param("winnerId", String.valueOf(invalidWinnerId)))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrl(TOURNAMENTS_PATH))
@@ -277,7 +281,7 @@ class TournamentControllerIT extends ITBase {
 
     mockMvc
         .perform(
-            post(TOURNAMENTS_PATH)
+            adminPost(TOURNAMENTS_PATH)
                 .param("name", "Mismatch Cup")
                 .param("playerCount", "2")
                 .param("seedingMode", "MANUAL")
@@ -304,5 +308,9 @@ class TournamentControllerIT extends ITBase {
     return playerService
         .createPlayer(CreatePlayerRequest.builder().nickname(nickname).build())
         .playerId();
+  }
+
+  private MockHttpServletRequestBuilder adminPost(String path) {
+    return post(path).with(user(ADMIN_USERNAME).roles("ADMIN")).with(csrf());
   }
 }
