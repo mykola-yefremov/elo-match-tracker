@@ -93,8 +93,8 @@ Responses use this shape:
 
 | Method | Path | Description |
 | --- | --- | --- |
-| `GET` | `/api/v1/players` | List players by Elo rating. |
-| `GET` | `/api/v1/players/{playerId}` | Get one player. |
+| `GET` | `/api/v1/players` | List players by Elo rating. Supports `query`, `page`, and `size`. |
+| `GET` | `/api/v1/players/{playerId}` | Get one player profile with stats and rating history. |
 | `POST` | `/api/v1/players` | Create a player. |
 
 Create example:
@@ -110,7 +110,8 @@ curl -i -u "$APP_ADMIN_USERNAME:$APP_ADMIN_PASSWORD" -X POST \
 
 | Method | Path | Description |
 | --- | --- | --- |
-| `GET` | `/api/v1/matches` | List match history. Supports `playerId` and `opponentId`. |
+| `GET` | `/api/v1/matches` | List match history. Supports `playerId`, `opponentId`, `page`, and `size`. |
+| `GET` | `/api/v1/matches/{matchId}` | Get one match with score, note, and Elo delta. |
 | `POST` | `/api/v1/matches` | Report a match and update Elo ratings. |
 | `DELETE` | `/api/v1/matches/{matchId}` | Cancel a match and repair rating history. |
 
@@ -119,7 +120,7 @@ Report example:
 ```bash
 curl -i -u "$APP_ADMIN_USERNAME:$APP_ADMIN_PASSWORD" -X POST \
   -H 'Content-Type: application/json' \
-  -d '{"winnerId":1,"loserId":2}' \
+  -d '{"winnerId":1,"loserId":2,"winnerScore":11,"loserScore":8,"note":"League night"}' \
   http://localhost:8080/api/v1/matches
 ```
 
@@ -168,7 +169,22 @@ Validation errors include a field-level `validationErrors` map.
 
 Shows the leaderboard page.
 
+The page supports nickname search and pagination.
 The model contains registered players sorted by Elo rating, the player registration form, and the match reporting form.
+
+Query params:
+
+| Name | Required | Notes |
+| --- | --- | --- |
+| `query` | No | Case-insensitive nickname search. |
+| `page` | No | Zero-based page number. |
+| `size` | No | Page size. |
+
+### `GET /players/{playerId}`
+
+Shows a player profile with wins, losses, total matches, win rate, recent matches, and rating history.
+
+Rating history starts at `1200` and applies each stored match Elo delta in chronological order.
 
 ### `POST /players/register`
 
@@ -201,6 +217,8 @@ Query params:
 | --- | --- | --- |
 | `playerId` | No | Shows matches where this player is winner or loser. |
 | `opponentId` | No | With `playerId`, shows head-to-head matches. Alone, it behaves like a single-player filter. |
+| `page` | No | Zero-based page number. |
+| `size` | No | Page size. |
 
 Filter behavior:
 
@@ -217,6 +235,10 @@ curl -i 'http://localhost:8080/matches?playerId=1'
 curl -i 'http://localhost:8080/matches?playerId=1&opponentId=2'
 ```
 
+### `GET /matches/{matchId}`
+
+Shows one match with players, score, optional note, date, and Elo delta.
+
 ### `POST /matches/report`
 
 Reports a match and updates Elo ratings in one transaction.
@@ -229,6 +251,9 @@ Form fields:
 | --- | --- | --- |
 | `winnerId` | Yes | Match winner. |
 | `loserId` | Yes | Match loser. Must be different from winner. |
+| `winnerScore` | No | Must be non-negative and greater than `loserScore` when both are present. |
+| `loserScore` | No | Must be non-negative. |
+| `note` | No | Optional match note, up to 500 characters. |
 
 Success:
 

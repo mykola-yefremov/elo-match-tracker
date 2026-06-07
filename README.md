@@ -9,7 +9,10 @@ The same service layer now also powers a JSON REST API under `/api/v1`.
 ## What The App Does
 
 - Register players with an initial Elo rating of `1200`.
-- Report match results and update both players in one transaction.
+- Search and paginate the leaderboard.
+- Open player profiles with wins, losses, win rate, recent matches, and rating history.
+- Report scored match results with optional notes and update both players in one transaction.
+- Open match detail pages.
 - Cancel matches and repair later rating history.
 - Filter match history by one player or by a pair of players.
 - Create tournaments, generate brackets, record results, and determine winners.
@@ -80,5 +83,5 @@ set real values in your shell or deployment environment before sharing the app.
 
 ## Roadmap
 
-- Add player search and pagination.
-- Add match notes and optional game modes.
+- Add richer tournament reporting.
+- Add export/import tools for player and match data.

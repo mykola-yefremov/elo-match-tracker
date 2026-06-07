@@ -41,6 +41,12 @@ public class MatchRestController {
     return PageResponse.from(matchService.getMatchHistory(playerId, opponentId, pageable));
   }
 
+  @GetMapping("/{matchId}")
+  @Operation(summary = "Get match", description = "Returns one match with score, note, and Elo delta.")
+  public MatchResponse getMatch(@PathVariable Long matchId) {
+    return matchService.getMatch(matchId);
+  }
+
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @Operation(summary = "Report match", description = "Creates a match and updates Elo ratings.")

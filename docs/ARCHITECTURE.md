@@ -44,10 +44,14 @@ The default values are intended for development and should be replaced in real d
 
 Players start with a rating of `1200`.
 
+The leaderboard uses repository-level search and pagination, ordered by Elo rating.
+Player profile pages reuse match history to show wins, losses, win rate, recent matches, and rating history.
+Rating history is reconstructed from the initial rating plus stored match Elo deltas.
+
 ## Match Flow
 
-1. `MatchController` receives winner and loser ids.
-2. `MatchService` checks that both ids are different.
+1. `MatchController` receives winner and loser ids, optional score, and optional note.
+2. `MatchService` checks that both ids are different and that a complete score has the winner ahead.
 3. The service loads both players with write locks.
 4. Elo rating changes are calculated.
 5. Both player ratings and the match row are saved in one transaction.
@@ -124,7 +128,7 @@ Important database choices:
 - ratings use `NUMERIC(10, 2)` instead of floating point numbers
 - player rows have a version column for persistence-level concurrency tracking
 - rating updates use pessimistic locks for the affected players
-- match history fields are indexed for filtering and recalculation
+- match history fields are indexed for filtering, profile pages, and recalculation
 - audit revisions are indexed for lookup by entity, operation, and creation time
 - tournament participants have unique constraints for player membership and seed number per tournament
 - tournament matches have unique round and match slots per tournament
