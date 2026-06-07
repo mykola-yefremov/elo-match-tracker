@@ -1,5 +1,6 @@
 package com.emt.controller;
 
+import static com.emt.security.SecurityRoles.ADMIN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -311,6 +312,6 @@ class TournamentControllerIT extends ITBase {
   }
 
   private MockHttpServletRequestBuilder adminPost(String path) {
-    return post(path).with(user(ADMIN_USERNAME).roles("ADMIN")).with(csrf());
+    return post(path).with(user(ADMIN_USERNAME).roles(ADMIN)).with(csrf());
   }
 }

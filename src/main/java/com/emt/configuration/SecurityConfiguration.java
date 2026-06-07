@@ -1,5 +1,7 @@
 package com.emt.configuration;
 
+import static com.emt.security.SecurityRoles.ADMIN;
+import static com.emt.security.SecurityRoles.USER;
 import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpMethod.POST;
 
@@ -24,7 +26,6 @@ import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
 @RequiredArgsConstructor
 public class SecurityConfiguration {
 
-  private static final String ADMIN = "ADMIN";
   private static final String API_PATTERN = "/api/**";
 
   private final AppSecurityProperties securityProperties;
@@ -77,7 +78,7 @@ public class SecurityConfiguration {
             .build(),
         User.withUsername(user.getUsername())
             .password(passwordEncoder.encode(user.getPassword()))
-            .roles("USER")
+            .roles(USER)
             .build());
   }
 

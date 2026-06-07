@@ -1,5 +1,6 @@
 package com.emt.controller;
 
+import static com.emt.security.SecurityRoles.ADMIN;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -46,7 +47,7 @@ public class PlayerControllerIT extends ITBase {
     mockMvc
         .perform(
             post(REGISTER_PATH)
-                .with(user(ADMIN_USERNAME).roles("ADMIN"))
+                .with(user(ADMIN_USERNAME).roles(ADMIN))
                 .with(csrf())
                 .param("nickname", ""))
         .andExpectAll(

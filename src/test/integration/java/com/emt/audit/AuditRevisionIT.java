@@ -1,5 +1,6 @@
 package com.emt.audit;
 
+import static com.emt.security.SecurityRoles.ADMIN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -45,7 +46,6 @@ class AuditRevisionIT extends ITBase {
   private static final String PLAYER_ID_FIELD = "playerId";
   private static final String PLAYER_REGISTER_PATH = "/players/register";
   private static final String PLAYERS_PATH = "/players";
-  private static final String ROLE_ADMIN = "ADMIN";
   private static final String SEED_ACTOR = "seed-user";
   private static final String WINNER_FIELD = "winner";
   private static final String WINNER_ID_PARAM = "winnerId";
@@ -127,7 +127,7 @@ class AuditRevisionIT extends ITBase {
     mockMvc
         .perform(
             post(MATCH_REPORT_PATH)
-                .with(user("match-reporter").roles(ROLE_ADMIN))
+                .with(user("match-reporter").roles(ADMIN))
                 .with(csrf())
                 .param(WINNER_ID_PARAM, String.valueOf(winner.getPlayerId()))
                 .param(LOSER_ID_PARAM, String.valueOf(loser.getPlayerId())))
@@ -181,7 +181,7 @@ class AuditRevisionIT extends ITBase {
     mockMvc
         .perform(
             post("/matches/cancel")
-                .with(user("admin-user").roles(ROLE_ADMIN))
+                .with(user("admin-user").roles(ADMIN))
                 .with(csrf())
                 .param(MATCH_ID_PARAM, String.valueOf(match.getMatchId())))
         .andExpect(status().is3xxRedirection())
@@ -211,7 +211,7 @@ class AuditRevisionIT extends ITBase {
     mockMvc
         .perform(
             post(MATCH_REPORT_PATH)
-                .with(user(actor).roles(ROLE_ADMIN))
+                .with(user(actor).roles(ADMIN))
                 .with(csrf())
                 .param(WINNER_ID_PARAM, String.valueOf(winner.getPlayerId()))
                 .param(LOSER_ID_PARAM, String.valueOf(loser.getPlayerId())))
@@ -248,6 +248,6 @@ class AuditRevisionIT extends ITBase {
   }
 
   private MockHttpServletRequestBuilder adminPost(String path, String actor) {
-    return post(path).with(user(actor).roles(ROLE_ADMIN)).with(csrf());
+    return post(path).with(user(actor).roles(ADMIN)).with(csrf());
   }
 }

@@ -1,5 +1,6 @@
 package com.emt.controller;
 
+import static com.emt.security.SecurityRoles.ADMIN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -198,6 +199,6 @@ public class MatchControllerIT extends ITBase {
   }
 
   private MockHttpServletRequestBuilder adminPost(String path) {
-    return post(path).with(user(ADMIN_USERNAME).roles("ADMIN")).with(csrf());
+    return post(path).with(user(ADMIN_USERNAME).roles(ADMIN)).with(csrf());
   }
 }
