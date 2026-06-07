@@ -35,6 +35,7 @@ class RestApiControllerIT extends ITBase {
   private static final String PLAYERS_API = "/api/v1/players";
   private static final String MATCHES_API = "/api/v1/matches";
   private static final String TOURNAMENTS_API = "/api/v1/tournaments";
+  private static final String MESSAGE_JSON_PATH = "$.message";
   private static final String STATUS_JSON_PATH = "$.status";
   private static final String ADMIN_USERNAME = "admin";
   private static final String ADMIN_PASSWORD = "admin-pass";
@@ -66,10 +67,12 @@ class RestApiControllerIT extends ITBase {
     mockMvc
         .perform(get(PLAYERS_API + "/" + playerId))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.nickname").value("ApiPlayerTwo"));
+        .andExpect(jsonPath("$.player.nickname").value("ApiPlayerTwo"))
+        .andExpect(jsonPath("$.stats.totalMatches").value(0))
+        .andExpect(jsonPath("$.ratingHistory.length()").value(1));
 
     mockMvc
-        .perform(get(PLAYERS_API).param("page", "0").param("size", "1"))
+        .perform(get(PLAYERS_API).param("query", "ApiPlayer").param("page", "0").param("size", "1"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.page").value(0))
@@ -109,16 +112,24 @@ class RestApiControllerIT extends ITBase {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         """
-                            {"winnerId":%d,"loserId":%d}
+                            {"winnerId":%d,"loserId":%d,"winnerScore":11,"loserScore":8,"note":"API note"}
                             """
                             .formatted(winnerId, loserId)))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.winnerName").value("ApiWinner"))
             .andExpect(jsonPath("$.loserName").value("ApiLoser"))
+            .andExpect(jsonPath("$.winnerScore").value(11))
+            .andExpect(jsonPath("$.loserScore").value(8))
+            .andExpect(jsonPath("$.note").value("API note"))
             .andReturn();
 
     MatchResponse match =
         objectMapper.readValue(result.getResponse().getContentAsString(), MatchResponse.class);
+
+    mockMvc
+        .perform(get(MATCHES_API + "/" + match.matchId()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.note").value("API note"));
 
     mockMvc
         .perform(get(MATCHES_API).param("playerId", String.valueOf(winnerId)))
@@ -151,7 +162,26 @@ class RestApiControllerIT extends ITBase {
                         """
                         .formatted(playerId, playerId)))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message", containsString("identical players")));
+        .andExpect(jsonPath(MESSAGE_JSON_PATH, containsString("identical players")));
+  }
+
+  @Test
+  void matchesApi_withInvalidScore_ShouldReturnJsonError() throws Exception {
+    Long winnerId = createPlayer("ApiScoreWinner");
+    Long loserId = createPlayer("ApiScoreLoser");
+
+    mockMvc
+        .perform(
+            post(MATCHES_API)
+                .with(adminBasicAuth())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                        {"winnerId":%d,"loserId":%d,"winnerScore":9,"loserScore":11}
+                        """
+                        .formatted(winnerId, loserId)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath(MESSAGE_JSON_PATH, containsString("Winner score")));
   }
 
   @Test
@@ -220,7 +250,7 @@ class RestApiControllerIT extends ITBase {
         .perform(get(TOURNAMENTS_API + "/404"))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath(STATUS_JSON_PATH).value(404))
-        .andExpect(jsonPath("$.message", containsString("Tournament with id 404 not found")));
+        .andExpect(jsonPath(MESSAGE_JSON_PATH, containsString("Tournament with id 404 not found")));
   }
 
   @Test
@@ -252,7 +282,7 @@ class RestApiControllerIT extends ITBase {
                     {"winnerId":%d}
                     """.formatted(invalidWinnerId)))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message", containsString("Winner must be one")));
+        .andExpect(jsonPath(MESSAGE_JSON_PATH, containsString("Winner must be one")));
   }
 
   @Test

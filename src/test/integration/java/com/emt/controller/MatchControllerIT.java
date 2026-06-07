@@ -49,6 +49,7 @@ public class MatchControllerIT extends ITBase {
         .andExpect(status().isOk())
         .andExpect(view().name(MATCH_HISTORY_VIEW))
         .andExpect(model().attributeExists(MATCHES_ATTRIBUTE))
+        .andExpect(model().attributeExists("matchPage"))
         .andExpect(model().attributeExists("players"))
         .andExpect(model().attribute(MATCHES_ATTRIBUTE, List.of()));
   }
@@ -59,12 +60,9 @@ public class MatchControllerIT extends ITBase {
     PlayerResponse alice = createPlayer("AliceOne");
     PlayerResponse bob = createPlayer("BobTwo");
     PlayerResponse carol = createPlayer("CarolThree");
-    MatchResponse aliceVsBob =
-        matchService.createMatch(new CreateMatchRequest(alice.playerId(), bob.playerId()));
-    MatchResponse carolVsAlice =
-        matchService.createMatch(new CreateMatchRequest(carol.playerId(), alice.playerId()));
-    MatchResponse bobVsCarol =
-        matchService.createMatch(new CreateMatchRequest(bob.playerId(), carol.playerId()));
+    MatchResponse aliceVsBob = createMatch(alice, bob);
+    MatchResponse carolVsAlice = createMatch(carol, alice);
+    MatchResponse bobVsCarol = createMatch(bob, carol);
 
     MvcResult result =
         mockMvc
@@ -90,9 +88,8 @@ public class MatchControllerIT extends ITBase {
     PlayerResponse alice = createPlayer("PairAlice");
     PlayerResponse bob = createPlayer("PairBob");
     PlayerResponse carol = createPlayer("PairCarol");
-    MatchResponse aliceVsBob =
-        matchService.createMatch(new CreateMatchRequest(alice.playerId(), bob.playerId()));
-    matchService.createMatch(new CreateMatchRequest(carol.playerId(), alice.playerId()));
+    MatchResponse aliceVsBob = createMatch(alice, bob);
+    createMatch(carol, alice);
 
     MvcResult result =
         mockMvc
@@ -139,10 +136,42 @@ public class MatchControllerIT extends ITBase {
         .perform(
             adminPost(MATCH_REPORT_PATH)
                 .param("winnerId", String.valueOf(winner.playerId()))
-                .param("loserId", String.valueOf(loser.playerId())))
+                .param("loserId", String.valueOf(loser.playerId()))
+                .param("winnerScore", "11")
+                .param("loserScore", "7")
+                .param("note", "Clean opening game"))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrl("/players"))
         .andExpect(flash().attribute("message", "Match reported successfully!"));
+
+    MatchResponse match = matchService.getAllMatches().get(0);
+    assertThat(match.winnerScore()).isEqualTo(11);
+    assertThat(match.loserScore()).isEqualTo(7);
+    assertThat(match.note()).isEqualTo("Clean opening game");
+  }
+
+  @Test
+  void getMatchDetail_withExistingMatch_expectDetailPage() throws Exception {
+    PlayerResponse winner =
+        playerService.createPlayer(CreatePlayerRequest.builder().nickname("detail-winner").build());
+    PlayerResponse loser =
+        playerService.createPlayer(CreatePlayerRequest.builder().nickname("detail-loser").build());
+    MatchResponse match =
+        matchService.createMatch(
+            CreateMatchRequest.builder()
+                .winnerId(winner.playerId())
+                .loserId(loser.playerId())
+                .winnerScore(21)
+                .loserScore(18)
+                .note("Close finish")
+                .build());
+
+    mockMvc
+        .perform(get(MATCH_HISTORY_PATH + "/" + match.matchId()))
+        .andExpectAll(
+            status().isOk(),
+            view().name("match-detail"),
+            model().attributeExists("match"));
   }
 
   @Test
@@ -196,6 +225,11 @@ public class MatchControllerIT extends ITBase {
 
   private PlayerResponse createPlayer(String nickname) {
     return playerService.createPlayer(CreatePlayerRequest.builder().nickname(nickname).build());
+  }
+
+  private MatchResponse createMatch(PlayerResponse winner, PlayerResponse loser) {
+    return matchService.createMatch(
+        CreateMatchRequest.builder().winnerId(winner.playerId()).loserId(loser.playerId()).build());
   }
 
   private MockHttpServletRequestBuilder adminPost(String path) {
