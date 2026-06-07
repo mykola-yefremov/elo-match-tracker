@@ -66,15 +66,9 @@ http://localhost:9090/actuator/info
 http://localhost:9090/actuator/metrics
 ```
 
-Local development users:
-
-| Username | Password | Role |
-| --- | --- | --- |
-| `admin` | `admin-pass` | Can create players, report/cancel matches, and manage tournaments. |
-| `user` | `user-pass` | Can browse pages and read the API. |
-
-The credentials can be changed with `APP_ADMIN_USERNAME`, `APP_ADMIN_PASSWORD`,
-`APP_USER_USERNAME`, and `APP_USER_PASSWORD`.
+Local development credentials are configured through `APP_ADMIN_USERNAME`, `APP_ADMIN_PASSWORD`,
+`APP_USER_USERNAME`, and `APP_USER_PASSWORD`. The default local values live in `application.yml`;
+set real values in your shell or deployment environment before sharing the app.
 
 ## Documentation
 

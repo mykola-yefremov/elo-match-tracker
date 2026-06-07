@@ -15,9 +15,9 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "app.security")
 public class AppSecurityProperties {
 
-  @Valid private User admin = new User("admin", "admin-pass");
+  @Valid private User admin = new User();
 
-  @Valid private User user = new User("user", "user-pass");
+  @Valid private User user = new User();
 
   @Getter
   @Setter

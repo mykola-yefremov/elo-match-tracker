@@ -36,22 +36,18 @@ The audit header name can be changed with `AUDIT_ACTOR_HEADER`.
 Read-only pages and `GET /api/v1/**` endpoints are public.
 Write actions require an admin user.
 
-Local credentials:
-
-| Username | Password | Role |
-| --- | --- | --- |
-| `admin` | `admin-pass` | Can create players, report/cancel matches, and manage tournaments. |
-| `user` | `user-pass` | Can read data, but cannot perform write actions. |
-
 The browser UI uses form login at `/login`.
 The REST API accepts HTTP Basic authentication for write endpoints.
 
-The default credentials are only for local development and can be changed through:
+For local API calls, set credentials in your shell instead of writing them into commands:
 
-- `APP_ADMIN_USERNAME`
-- `APP_ADMIN_PASSWORD`
-- `APP_USER_USERNAME`
-- `APP_USER_PASSWORD`
+```bash
+export APP_ADMIN_USERNAME=local-admin
+export APP_ADMIN_PASSWORD='<choose-a-local-password>'
+```
+
+The same variables, plus `APP_USER_USERNAME` and `APP_USER_PASSWORD`, can be used to override
+the local defaults. The `prod` profile requires these values from the environment.
 
 ## Request Blocking
 
@@ -104,7 +100,7 @@ Responses use this shape:
 Create example:
 
 ```bash
-curl -i -u admin:admin-pass -X POST \
+curl -i -u "$APP_ADMIN_USERNAME:$APP_ADMIN_PASSWORD" -X POST \
   -H 'Content-Type: application/json' \
   -d '{"nickname":"Alice"}' \
   http://localhost:8080/api/v1/players
@@ -121,7 +117,7 @@ curl -i -u admin:admin-pass -X POST \
 Report example:
 
 ```bash
-curl -i -u admin:admin-pass -X POST \
+curl -i -u "$APP_ADMIN_USERNAME:$APP_ADMIN_PASSWORD" -X POST \
   -H 'Content-Type: application/json' \
   -d '{"winnerId":1,"loserId":2}' \
   http://localhost:8080/api/v1/matches
@@ -140,7 +136,7 @@ curl -i -u admin:admin-pass -X POST \
 Tournament result example:
 
 ```bash
-curl -i -u admin:admin-pass -X POST \
+curl -i -u "$APP_ADMIN_USERNAME:$APP_ADMIN_PASSWORD" -X POST \
   -H 'Content-Type: application/json' \
   -d '{"winnerId":1}' \
   http://localhost:8080/api/v1/tournaments/matches/10/result
