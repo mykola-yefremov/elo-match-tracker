@@ -2,13 +2,13 @@ package com.emt.controller;
 
 import com.emt.model.request.CreateMatchRequest;
 import com.emt.model.response.MatchResponse;
-import com.emt.model.response.PlayerResponse;
 import com.emt.service.MatchService;
 import com.emt.service.PlayerService;
 import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -27,15 +27,25 @@ public class MatchController {
   public String getAllMatches(
       @RequestParam(required = false) Long playerId,
       @RequestParam(required = false) Long opponentId,
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "10") int size,
       Model model) {
-    List<MatchResponse> matches = matchService.getMatchHistory(playerId, opponentId);
-    List<PlayerResponse> players = playerService.getAllPlayers();
+    Page<MatchResponse> matchPage =
+        matchService.getMatchHistory(
+            playerId, opponentId, PageRequest.of(Math.max(page, 0), Math.max(size, 1)));
 
-    model.addAttribute("matches", matches);
-    model.addAttribute("players", players);
+    model.addAttribute("matches", matchPage.getContent());
+    model.addAttribute("matchPage", matchPage);
+    model.addAttribute("players", playerService.getAllPlayers());
     model.addAttribute("selectedPlayerId", playerId);
     model.addAttribute("selectedOpponentId", opponentId);
     return "match-history";
+  }
+
+  @GetMapping("/{matchId}")
+  public String getMatch(@PathVariable Long matchId, Model model) {
+    model.addAttribute("match", matchService.getMatch(matchId));
+    return "match-detail";
   }
 
   @PostMapping("/report")

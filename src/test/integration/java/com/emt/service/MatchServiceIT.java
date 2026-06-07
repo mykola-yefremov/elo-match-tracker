@@ -35,7 +35,7 @@ public class MatchServiceIT extends ITBase {
         playerService.createPlayer(CreatePlayerRequest.builder().nickname(LOSER_NICKNAME).build());
 
     CreateMatchRequest matchRequest =
-        new CreateMatchRequest(firstPlayer.playerId(), secondPlayer.playerId());
+        CreateMatchRequest.builder().winnerId(firstPlayer.playerId()).loserId(secondPlayer.playerId()).build();
     matchService.createMatch(matchRequest);
 
     List<MatchResponse> matches = matchService.getAllMatches();
@@ -56,7 +56,7 @@ public class MatchServiceIT extends ITBase {
     BigDecimal initialRatingSecondPlayer = secondPlayer.eloRating();
 
     matchService.createMatch(
-        new CreateMatchRequest(firstPlayer.playerId(), secondPlayer.playerId()));
+        CreateMatchRequest.builder().winnerId(firstPlayer.playerId()).loserId(secondPlayer.playerId()).build());
 
     Player updatedFirstPlayer = playerService.getPlayerById(firstPlayer.playerId());
     Player updatedSecondPlayer = playerService.getPlayerById(secondPlayer.playerId());
@@ -86,13 +86,13 @@ public class MatchServiceIT extends ITBase {
 
     MatchResponse firstMatch =
         matchService.createMatch(
-            new CreateMatchRequest(playerOne.playerId(), playerTwo.playerId()));
+            CreateMatchRequest.builder().winnerId(playerOne.playerId()).loserId(playerTwo.playerId()).build());
     MatchResponse secondMatch =
         matchService.createMatch(
-            new CreateMatchRequest(playerTwo.playerId(), playerThree.playerId()));
+            CreateMatchRequest.builder().winnerId(playerTwo.playerId()).loserId(playerThree.playerId()).build());
     MatchResponse thirdMatch =
         matchService.createMatch(
-            new CreateMatchRequest(playerThree.playerId(), playerFour.playerId()));
+            CreateMatchRequest.builder().winnerId(playerThree.playerId()).loserId(playerFour.playerId()).build());
 
     matchService.cancelMatch(secondMatch.matchId());
 
@@ -122,7 +122,7 @@ public class MatchServiceIT extends ITBase {
     Long secondPlayerIdBefore = secondPlayer.playerId();
 
     matchService.createMatch(
-        new CreateMatchRequest(firstPlayer.playerId(), secondPlayer.playerId()));
+        CreateMatchRequest.builder().winnerId(firstPlayer.playerId()).loserId(secondPlayer.playerId()).build());
 
     Player updatedFirstPlayer = playerService.getPlayerById(firstPlayer.playerId());
     Player updatedSecondPlayer = playerService.getPlayerById(secondPlayer.playerId());
@@ -142,7 +142,7 @@ public class MatchServiceIT extends ITBase {
     Player secondPlayerBeforeMatch = playerService.getPlayerById(secondPlayer.playerId());
 
     CreateMatchRequest matchRequest =
-        new CreateMatchRequest(firstPlayer.playerId(), secondPlayer.playerId());
+        CreateMatchRequest.builder().winnerId(firstPlayer.playerId()).loserId(secondPlayer.playerId()).build();
 
     matchService.createMatch(matchRequest);
 

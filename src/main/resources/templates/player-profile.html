@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <link rel="stylesheet" th:href="@{/styles/styles.css}">
+    <title th:text="${profile.player.nickname + ' Profile'}">Player Profile</title>
+</head>
+<body>
+<header th:replace="~{fragments :: siteHeader('players')}"></header>
+
+<main class="page-shell">
+    <section class="hero profile-hero">
+        <p class="eyebrow">Player profile</p>
+        <h1 th:text="${profile.player.nickname}">Player</h1>
+        <p class="hero-copy">
+            Current rating
+            <strong th:text="${profile.player.eloRating}">1200</strong>
+            since
+            <span th:text="${#temporals.format(profile.player.registeredAt, 'yyyy-MM-dd')}">date</span>.
+        </p>
+    </section>
+
+    <section class="stats-grid">
+        <article class="stat-card">
+            <span>Wins</span>
+            <strong th:text="${profile.stats.wins}">0</strong>
+        </article>
+        <article class="stat-card">
+            <span>Losses</span>
+            <strong th:text="${profile.stats.losses}">0</strong>
+        </article>
+        <article class="stat-card">
+            <span>Win rate</span>
+            <strong th:text="${profile.stats.winRate + '%'}">0%</strong>
+        </article>
+        <article class="stat-card">
+            <span>Total matches</span>
+            <strong th:text="${profile.stats.totalMatches}">0</strong>
+        </article>
+    </section>
+
+    <section class="panel">
+        <div class="section-title">
+            <h2>Rating history</h2>
+            <span th:text="${#lists.size(profile.ratingHistory)} + ' points'">0 points</span>
+        </div>
+        <ol class="timeline-list">
+            <li th:each="point : ${profile.ratingHistory}" class="timeline-item">
+                <span th:text="${point.occurredAt != null ? #temporals.format(point.occurredAt, 'yyyy-MM-dd') : 'N/A'}">Date</span>
+                <strong th:text="${point.rating}">1200</strong>
+                <a th:if="${point.matchId != null}" th:href="@{/matches/{id}(id=${point.matchId})}" th:text="${point.label}">Match</a>
+                <span th:if="${point.matchId == null}" th:text="${point.label}">Registered</span>
+            </li>
+        </ol>
+    </section>
+
+    <section class="panel">
+        <div class="section-title">
+            <h2>Recent matches</h2>
+            <span th:text="${#lists.size(profile.recentMatches)} + ' shown'">0 shown</span>
+        </div>
+        <div class="empty-state" th:if="${#lists.isEmpty(profile.recentMatches)}">
+            <p>No matches yet.</p>
+        </div>
+        <table th:if="${!#lists.isEmpty(profile.recentMatches)}">
+            <thead>
+            <tr>
+                <th>Date</th>
+                <th>Winner</th>
+                <th>Loser</th>
+                <th>Score</th>
+                <th>Elo</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="match : ${profile.recentMatches}">
+                <td>
+                    <a th:href="@{/matches/{id}(id=${match.matchId})}"
+                       th:text="${#temporals.format(match.createdAt, 'yyyy-MM-dd')}">Date</a>
+                </td>
+                <td th:text="${match.winnerName}">Winner</td>
+                <td th:text="${match.loserName}">Loser</td>
+                <td th:text="${match.winnerScore != null && match.loserScore != null ? match.winnerScore + '-' + match.loserScore : 'N/A'}">11-8</td>
+                <td>
+                    <span class="rating-change"
+                          th:classappend="${match.winnerId == profile.player.playerId ? 'positive' : 'negative'}"
+                          th:text="${match.winnerId == profile.player.playerId ? '+' + match.winnerRatingChange : -match.winnerRatingChange}">+15</span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+</main>
+</body>
+</html>

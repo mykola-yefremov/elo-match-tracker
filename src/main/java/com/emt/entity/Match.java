@@ -33,4 +33,20 @@ public class Match {
 
   @NotNull private BigDecimal winnerRatingChange;
   @NotNull private Instant createdAt;
+  private Integer winnerScore;
+  private Integer loserScore;
+  private String note;
+
+  public Match(
+      Long matchId,
+      Player winner,
+      Player loser,
+      BigDecimal winnerRatingChange,
+      Instant createdAt) {
+    this.matchId = matchId;
+    this.winner = winner;
+    this.loser = loser;
+    this.winnerRatingChange = winnerRatingChange;
+    this.createdAt = createdAt;
+  }
 }

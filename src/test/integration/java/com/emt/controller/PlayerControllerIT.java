@@ -37,9 +37,38 @@ public class PlayerControllerIT extends ITBase {
             status().isOk(),
             view().name("elo-ranking"),
             model().attributeExists("players"),
+            model().attributeExists("playerPage"),
             model().attributeExists("playerRequest"),
             model().attributeExists("matchRequest"),
             model().attribute("players", List.of(response)));
+  }
+
+  @Test
+  void getPlayers_withSearchQuery_expectFilteredLeaderboard() throws Exception {
+    PlayerResponse response =
+        playerService.createPlayer(CreatePlayerRequest.builder().nickname("searchable-player").build());
+    playerService.createPlayer(CreatePlayerRequest.builder().nickname("hidden-player").build());
+
+    mockMvc
+        .perform(get(PLAYERS_PATH).param("query", "searchable"))
+        .andExpectAll(
+            status().isOk(),
+            view().name("elo-ranking"),
+            model().attribute("players", List.of(response)),
+            model().attribute("query", "searchable"));
+  }
+
+  @Test
+  void getPlayerProfile_withExistingPlayer_expectProfilePage() throws Exception {
+    PlayerResponse response =
+        playerService.createPlayer(CreatePlayerRequest.builder().nickname("profile-player").build());
+
+    mockMvc
+        .perform(get(PLAYERS_PATH + "/" + response.playerId()))
+        .andExpectAll(
+            status().isOk(),
+            view().name("player-profile"),
+            model().attributeExists("profile"));
   }
 
   @Test

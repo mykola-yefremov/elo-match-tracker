@@ -5,12 +5,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
+import com.emt.entity.Match;
 import com.emt.entity.Player;
+import com.emt.mapper.MatchMapper;
 import com.emt.mapper.PlayerMapper;
 import com.emt.model.exception.PlayerAlreadyExistsException;
 import com.emt.model.exception.PlayerNotFoundException;
 import com.emt.model.request.CreatePlayerRequest;
+import com.emt.model.response.MatchResponse;
+import com.emt.model.response.PlayerProfileResponse;
 import com.emt.model.response.PlayerResponse;
+import com.emt.repository.MatchRepository;
 import com.emt.repository.PlayerRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -29,7 +34,9 @@ class PlayerServiceTest {
   private static final BigDecimal DEFAULT_RATING = new BigDecimal("1200");
 
   @Mock private PlayerRepository playerRepository;
+  @Mock private MatchRepository matchRepository;
   @Mock private PlayerMapper playerMapper;
+  @Mock private MatchMapper matchMapper;
   @InjectMocks private PlayerService playerService;
 
   @Test
@@ -114,5 +121,42 @@ class PlayerServiceTest {
     assertThatThrownBy(() -> playerService.getPlayerById(404L))
         .isInstanceOf(PlayerNotFoundException.class)
         .hasMessageContaining("Player with id 404 not found");
+  }
+
+  @Test
+  void getPlayerProfile_WhenPlayerHasMatches_ShouldReturnStatsAndHistory() {
+    Instant registeredAt = Instant.parse("2026-01-01T00:00:00Z");
+    Instant matchTime = Instant.parse("2026-01-02T00:00:00Z");
+    Player player = new Player(1L, NICKNAME, new BigDecimal("1215.00"), registeredAt);
+    Player opponent = new Player(2L, "opponent", DEFAULT_RATING, registeredAt);
+    Match match = new Match(10L, player, opponent, new BigDecimal("15.00"), matchTime);
+    MatchResponse matchResponse =
+        MatchResponse.builder()
+            .matchId(10L)
+            .winnerId(1L)
+            .winnerName(NICKNAME)
+            .loserId(2L)
+            .loserName("opponent")
+            .winnerRatingChange(new BigDecimal("15.00"))
+            .createdAt(matchTime)
+            .build();
+    PlayerResponse playerResponse =
+        new PlayerResponse(1L, NICKNAME, new BigDecimal("1215.00"), registeredAt);
+
+    given(playerRepository.findById(1L)).willReturn(Optional.of(player));
+    given(matchRepository.findMatchesByPlayer(1L)).willReturn(List.of(match));
+    given(matchMapper.mapToResponse(match)).willReturn(matchResponse);
+    given(playerMapper.mapToResponse(player)).willReturn(playerResponse);
+    given(matchRepository.countByWinner_PlayerId(1L)).willReturn(1);
+    given(matchRepository.countByLoser_PlayerId(1L)).willReturn(0);
+
+    PlayerProfileResponse profile = playerService.getPlayerProfile(1L);
+
+    assertThat(profile.player()).isEqualTo(playerResponse);
+    assertThat(profile.stats().wins()).isEqualTo(1);
+    assertThat(profile.stats().winRate()).isEqualByComparingTo("100.00");
+    assertThat(profile.recentMatches()).containsExactly(matchResponse);
+    assertThat(profile.ratingHistory()).hasSize(2);
+    assertThat(profile.ratingHistory().get(1).rating()).isEqualByComparingTo("1215.00");
   }
 }
