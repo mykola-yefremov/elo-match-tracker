@@ -73,9 +73,23 @@ Local development credentials are configured through `APP_ADMIN_USERNAME`, `APP_
 `APP_USER_USERNAME`, and `APP_USER_PASSWORD`. The default local values live in `application.yml`;
 set real values in your shell or deployment environment before sharing the app.
 
+## Usage Notes
+
+The main UI starts at `/players`. From there you can search the leaderboard, open player profiles,
+report matches, review match history, and manage tournaments.
+
+REST endpoints live under `/api/v1`. Swagger UI is available locally at `/swagger-ui.html`, so the exact
+request and response shapes stay generated from the code instead of being duplicated in a long markdown file.
+
+Important behavior:
+
+- Write actions require an admin user.
+- Elo starts at `1200` and is updated in one transaction when a match is reported.
+- Match cancellation repairs later rating history because Elo depends on match order.
+- Player and match changes are audited.
+
 ## Documentation
 
-- [API and Domain Notes](docs/API.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)

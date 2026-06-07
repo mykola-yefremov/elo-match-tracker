@@ -22,6 +22,12 @@ API responses use dedicated JSON error handling in `RestApiExceptionHandler`.
 MVC errors still use redirects and flash attributes.
 Swagger UI documents the REST controllers, while MVC controllers are hidden from OpenAPI.
 
+Main REST resources:
+
+- `/api/v1/players` for leaderboard search, profiles, and player creation
+- `/api/v1/matches` for match history, match details, reporting, and cancellation
+- `/api/v1/tournaments` for tournament setup, bracket progression, and result reporting
+
 ## Security Flow
 
 Spring Security protects write actions while keeping read-only pages easy to browse.
