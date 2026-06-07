@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <link rel="stylesheet" th:href="@{/styles/styles.css}">
     <title>Elo Ranking</title>
@@ -14,6 +14,16 @@
             </li>
             <li class="header-item">
                 <a href="/tournaments" class="header-link">Tournaments</a>
+            </li>
+
+            <li class="header-item" sec:authorize="isAnonymous()">
+                <a href="/login" class="header-link">Login</a>
+            </li>
+            <li class="header-item" sec:authorize="isAuthenticated()">
+                <form class="logout-form" th:action="@{/logout}" method="post">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button class="header-link header-button" type="submit">Logout</button>
+                </form>
             </li>
         </ul>
     </nav>
@@ -55,6 +65,7 @@
     <section class="form-section panel">
         <h2>Add a New Player</h2>
         <form th:action="@{/players/register}" th:object="${playerRequest}" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <input type="text" th:field="*{nickname}" placeholder="Enter player name" required>
             <button type="submit">Add Player</button>
         </form>
@@ -63,6 +74,7 @@
     <section class="form-section panel">
         <h2>Report Match Outcome</h2>
         <form th:action="@{/matches/report}" th:object="${matchRequest}" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
             <label for="winner">Winner:</label>
             <select th:field="*{winnerId}" id="winner" required>
                 <option value="" disabled selected>Select Winner</option>

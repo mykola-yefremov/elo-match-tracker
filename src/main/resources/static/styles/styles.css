@@ -467,3 +467,33 @@ th {
         width: 100%;
     }
 }
+
+.logout-form {
+    margin: 0;
+}
+
+.header-button {
+    min-height: 40px;
+    background: transparent;
+    color: var(--accent-strong);
+}
+
+.header-button:hover {
+    background: var(--accent);
+    color: #ffffff;
+}
+
+.auth-shell {
+    display: grid;
+    place-items: center;
+}
+
+.auth-card {
+    width: min(520px, 100%);
+}
+
+.auth-form {
+    display: grid;
+    gap: 12px;
+    margin-top: 20px;
+}
