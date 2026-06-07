@@ -1,23 +1,11 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <link rel="stylesheet" th:href="@{/styles/styles.css}">
     <title>Match History</title>
 </head>
 <body>
-<header class="page-header">
-    <nav class="header-nav">
-        <a class="brand" href="/players">Elo Match Tracker</a>
-        <ul class="header-list">
-            <li class="header-item">
-                <a href="/players" class="header-link">Rankings</a>
-            </li>
-            <li class="header-item">
-                <a href="/tournaments" class="header-link">Tournaments</a>
-            </li>
-        </ul>
-    </nav>
-</header>
+<header th:replace="~{fragments :: siteHeader('matches')}"></header>
 
 <main class="page-shell">
     <section class="hero">
@@ -90,6 +78,7 @@
                 </td>
                 <td>
                     <form th:action="@{/matches/cancel}" method="post">
+                        <th:block th:replace="~{fragments :: csrfInput}"></th:block>
                         <input type="hidden" name="matchId" th:value="${match.matchId}"/>
                         <button class="button-secondary" type="submit">Cancel</button>
                     </form>

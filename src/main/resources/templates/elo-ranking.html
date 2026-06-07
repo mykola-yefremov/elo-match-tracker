@@ -1,23 +1,11 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <link rel="stylesheet" th:href="@{/styles/styles.css}">
     <title>Elo Ranking</title>
 </head>
 <body>
-<header class="page-header">
-    <nav class="header-nav">
-        <a class="brand" href="/players">Elo Match Tracker</a>
-        <ul class="header-list">
-            <li class="header-item">
-                <a href="/matches" class="header-link">Match History</a>
-            </li>
-            <li class="header-item">
-                <a href="/tournaments" class="header-link">Tournaments</a>
-            </li>
-        </ul>
-    </nav>
-</header>
+<header th:replace="~{fragments :: siteHeader('players')}"></header>
 
 <main class="page-shell">
     <section class="hero">
@@ -55,6 +43,7 @@
     <section class="form-section panel">
         <h2>Add a New Player</h2>
         <form th:action="@{/players/register}" th:object="${playerRequest}" method="post">
+            <th:block th:replace="~{fragments :: csrfInput}"></th:block>
             <input type="text" th:field="*{nickname}" placeholder="Enter player name" required>
             <button type="submit">Add Player</button>
         </form>
@@ -63,6 +52,7 @@
     <section class="form-section panel">
         <h2>Report Match Outcome</h2>
         <form th:action="@{/matches/report}" th:object="${matchRequest}" method="post">
+            <th:block th:replace="~{fragments :: csrfInput}"></th:block>
             <label for="winner">Winner:</label>
             <select th:field="*{winnerId}" id="winner" required>
                 <option value="" disabled selected>Select Winner</option>

@@ -4,6 +4,15 @@ springdoc:
   swagger-ui:
     enabled: false
 
+app:
+  security:
+    admin:
+      username: ${APP_ADMIN_USERNAME}
+      password: ${APP_ADMIN_PASSWORD}
+    user:
+      username: ${APP_USER_USERNAME}
+      password: ${APP_USER_PASSWORD}
+
 management:
   endpoints:
     web:

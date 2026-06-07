@@ -26,10 +26,28 @@ MVC controllers are intentionally hidden from Swagger so the API docs stay focus
 
 | Header | Required | Description |
 | --- | --- | --- |
-| `X-Actor` | No | Used by auditing. If it is missing, the app uses the configured fallback actor, currently `system`. |
+| `X-Actor` | No | Legacy audit actor header. Logged-in users take priority when authentication is available. |
 | `X-Correlation-Id` | No | Request tracing id. If it is missing, the app generates one and returns it in the response. |
 
 The audit header name can be changed with `AUDIT_ACTOR_HEADER`.
+
+## Authentication
+
+Read-only pages and `GET /api/v1/**` endpoints are public.
+Write actions require an admin user.
+
+The browser UI uses form login at `/login`.
+The REST API accepts HTTP Basic authentication for write endpoints.
+
+For local API calls, set credentials in your shell instead of writing them into commands:
+
+```bash
+export APP_ADMIN_USERNAME=local-admin
+export APP_ADMIN_PASSWORD='<choose-a-local-password>'
+```
+
+The same variables, plus `APP_USER_USERNAME` and `APP_USER_PASSWORD`, can be used to override
+the local defaults. The `prod` profile requires these values from the environment.
 
 ## Request Blocking
 
@@ -82,7 +100,10 @@ Responses use this shape:
 Create example:
 
 ```bash
-curl -i -X POST   -H 'Content-Type: application/json'   -d '{"nickname":"Alice"}'   http://localhost:8080/api/v1/players
+curl -i -u "$APP_ADMIN_USERNAME:$APP_ADMIN_PASSWORD" -X POST \
+  -H 'Content-Type: application/json' \
+  -d '{"nickname":"Alice"}' \
+  http://localhost:8080/api/v1/players
 ```
 
 ### Matches API
@@ -96,7 +117,10 @@ curl -i -X POST   -H 'Content-Type: application/json'   -d '{"nickname":"Alice"}
 Report example:
 
 ```bash
-curl -i -X POST   -H 'Content-Type: application/json'   -d '{"winnerId":1,"loserId":2}'   http://localhost:8080/api/v1/matches
+curl -i -u "$APP_ADMIN_USERNAME:$APP_ADMIN_PASSWORD" -X POST \
+  -H 'Content-Type: application/json' \
+  -d '{"winnerId":1,"loserId":2}' \
+  http://localhost:8080/api/v1/matches
 ```
 
 ### Tournaments API
@@ -112,7 +136,10 @@ curl -i -X POST   -H 'Content-Type: application/json'   -d '{"winnerId":1,"loser
 Tournament result example:
 
 ```bash
-curl -i -X POST   -H 'Content-Type: application/json'   -d '{"winnerId":1}'   http://localhost:8080/api/v1/tournaments/matches/10/result
+curl -i -u "$APP_ADMIN_USERNAME:$APP_ADMIN_PASSWORD" -X POST \
+  -H 'Content-Type: application/json' \
+  -d '{"winnerId":1}' \
+  http://localhost:8080/api/v1/tournaments/matches/10/result
 ```
 
 ### REST Error Responses
@@ -147,6 +174,8 @@ The model contains registered players sorted by Elo rating, the player registrat
 
 Creates a player.
 
+Requires an authenticated admin session.
+
 Form fields:
 
 | Name | Required | Notes |
@@ -158,14 +187,7 @@ Success:
 - redirects to `/players`
 - shows `Player added successfully!`
 
-Example:
-
-```bash
-curl -i -X POST \
-  -H 'X-Actor: demo-user' \
-  -d 'nickname=Alice' \
-  http://localhost:8080/players/register
-```
+Browser forms include CSRF tokens automatically.
 
 ## Matches
 
@@ -199,6 +221,8 @@ curl -i 'http://localhost:8080/matches?playerId=1&opponentId=2'
 
 Reports a match and updates Elo ratings in one transaction.
 
+Requires an authenticated admin session.
+
 Form fields:
 
 | Name | Required | Notes |
@@ -211,18 +235,13 @@ Success:
 - redirects to `/players`
 - shows `Match reported successfully!`
 
-Example:
-
-```bash
-curl -i -X POST \
-  -H 'X-Actor: match-reporter' \
-  -d 'winnerId=1&loserId=2' \
-  http://localhost:8080/matches/report
-```
+Browser forms include CSRF tokens automatically.
 
 ### `POST /matches/cancel`
 
 Cancels a match and repairs affected ratings.
+
+Requires an authenticated admin session.
 
 Form fields:
 
@@ -252,6 +271,8 @@ The page contains:
 
 Creates a tournament setup.
 
+Requires an authenticated admin session.
+
 Form fields:
 
 | Name | Required | Notes |
@@ -269,20 +290,7 @@ Success:
 - redirects to `/tournaments`
 - shows `Tournament created successfully!`
 
-Example:
-
-```bash
-curl -i -X POST \
-  -d 'name=Friday Finals' \
-  -d 'playerCount=2' \
-  -d 'seedingMode=MANUAL' \
-  -d 'gameFormat=BO3' \
-  -d 'winningPoints=11' \
-  -d 'bracketType=SINGLE_ELIMINATION' \
-  -d 'playerIds=1' \
-  -d 'playerIds=2' \
-  http://localhost:8080/tournaments
-```
+Browser forms include CSRF tokens automatically.
 
 Manual seeding keeps the submitted player order.
 Random seeding is intentionally non-deterministic; once saved, seed numbers are the source of truth.
@@ -290,6 +298,8 @@ Random seeding is intentionally non-deterministic; once saved, seed numbers are 
 ### `POST /tournaments/{tournamentId}/start`
 
 Starts a draft tournament and generates its first playable matches.
+
+Requires an authenticated admin session.
 
 Single elimination pairs top seeds against bottom seeds in the first round.
 Round-robin uses a simple rotating schedule so every player meets every other player once.
@@ -302,6 +312,8 @@ Success:
 ### `POST /tournaments/matches/{tournamentMatchId}/report`
 
 Records a tournament match winner.
+
+Requires an authenticated admin session.
 
 Form fields:
 
@@ -360,9 +372,10 @@ Each audit row stores:
 - entity id
 - operation: `INSERT`, `UPDATE`, or `DELETE`
 - JSONB snapshot
-- actor from request header
+- actor from the authenticated user, or the request header when no user is available
 - timestamp with time zone
 
+If neither authentication nor a usable actor header is present, the configured fallback actor is used.
 Tournament setup is not audited yet because the current audit feature was scoped to players and matches.
 
 ## Error Handling

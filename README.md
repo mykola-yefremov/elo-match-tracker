@@ -13,6 +13,7 @@ The same service layer now also powers a JSON REST API under `/api/v1`.
 - Cancel matches and repair later rating history.
 - Filter match history by one player or by a pair of players.
 - Create tournaments, generate brackets, record results, and determine winners.
+- Require login and admin permissions for write actions.
 - Store audit revisions for player and match changes.
 - Add correlation ids to requests for easier log tracing.
 - Expose basic business metrics through Actuator.
@@ -25,6 +26,7 @@ The same service layer now also powers a JSON REST API under `/api/v1`.
 - Spring Boot 3
 - Spring MVC, REST controllers, and Thymeleaf
 - Spring Data JPA
+- Spring Security
 - PostgreSQL
 - Flyway
 - Gradle
@@ -54,6 +56,7 @@ Useful local links:
 ```text
 http://localhost:8080/matches
 http://localhost:8080/tournaments
+http://localhost:8080/login
 http://localhost:8080/api/v1/players
 http://localhost:8080/api/v1/matches
 http://localhost:8080/api/v1/tournaments
@@ -62,6 +65,10 @@ http://localhost:9090/actuator/health
 http://localhost:9090/actuator/info
 http://localhost:9090/actuator/metrics
 ```
+
+Local development credentials are configured through `APP_ADMIN_USERNAME`, `APP_ADMIN_PASSWORD`,
+`APP_USER_USERNAME`, and `APP_USER_PASSWORD`. The default local values live in `application.yml`;
+set real values in your shell or deployment environment before sharing the app.
 
 ## Documentation
 
@@ -75,4 +82,3 @@ http://localhost:9090/actuator/metrics
 
 - Add player search and pagination.
 - Add match notes and optional game modes.
-- Add authentication for admin actions.

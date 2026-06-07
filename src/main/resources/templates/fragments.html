@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<header class="page-header" th:fragment="siteHeader(currentPage)">
+    <nav class="header-nav">
+        <a class="brand" href="/players">Elo Match Tracker</a>
+        <ul class="header-list">
+            <li class="header-item">
+                <a href="/players" class="header-link"
+                   th:attr="aria-current=${currentPage == 'players' ? 'page' : null}">Rankings</a>
+            </li>
+            <li class="header-item">
+                <a href="/matches" class="header-link"
+                   th:attr="aria-current=${currentPage == 'matches' ? 'page' : null}">Match History</a>
+            </li>
+            <li class="header-item">
+                <a href="/tournaments" class="header-link"
+                   th:attr="aria-current=${currentPage == 'tournaments' ? 'page' : null}">Tournaments</a>
+            </li>
+            <li class="header-item" sec:authorize="isAnonymous()">
+                <a href="/login" class="header-link"
+                   th:attr="aria-current=${currentPage == 'login' ? 'page' : null}">Login</a>
+            </li>
+            <li class="header-item" sec:authorize="isAuthenticated()">
+                <form class="logout-form" th:action="@{/logout}" method="post">
+                    <th:block th:replace="~{fragments :: csrfInput}"></th:block>
+                    <button class="header-link header-button" type="submit">Logout</button>
+                </form>
+            </li>
+        </ul>
+    </nav>
+</header>
+
+<input th:fragment="csrfInput" type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+</body>
+</html>

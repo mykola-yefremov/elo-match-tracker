@@ -22,6 +22,18 @@ API responses use dedicated JSON error handling in `RestApiExceptionHandler`.
 MVC errors still use redirects and flash attributes.
 Swagger UI documents the REST controllers, while MVC controllers are hidden from OpenAPI.
 
+## Security Flow
+
+Spring Security protects write actions while keeping read-only pages easy to browse.
+
+- `GET` pages and read-only REST endpoints are public.
+- MVC write actions require an authenticated `ADMIN` session and CSRF token.
+- REST write actions require `ADMIN` access and can use HTTP Basic authentication.
+- Swagger and health/info actuator endpoints stay public for local discovery and smoke checks.
+
+Local users are configured through `app.security`.
+The default values are intended for development and should be replaced in real deployments.
+
 ## Player Flow
 
 1. `PlayerController` receives the registration form.
@@ -86,8 +98,9 @@ The audit listener writes a separate `audit_revision` row with entity name, enti
 actor, timestamp, and a JSONB snapshot.
 For matches, player references are stored as ids instead of nested objects to keep snapshots stable.
 
-The actor comes from the configured request header, currently `X-Actor`.
-If the header is missing, the fallback actor is used.
+The actor comes from the authenticated user when one is available.
+If there is no authenticated user, the configured request header is used.
+If neither exists, the fallback actor is used.
 
 ## Request Correlation And Filtering
 
@@ -122,6 +135,7 @@ The default profile is for local development.
 
 The `prod` profile disables Swagger UI and keeps actuator exposure limited.
 This is safer for a deployed environment while still allowing local API discovery during development.
+The `prod` profile also requires security credentials from environment variables instead of using local defaults.
 
 ## CI And Build Validation
 

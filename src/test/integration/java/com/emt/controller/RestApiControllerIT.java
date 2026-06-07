@@ -2,6 +2,7 @@ package com.emt.controller;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 @RequiredArgsConstructor
 class RestApiControllerIT extends ITBase {
@@ -34,6 +36,10 @@ class RestApiControllerIT extends ITBase {
   private static final String MATCHES_API = "/api/v1/matches";
   private static final String TOURNAMENTS_API = "/api/v1/tournaments";
   private static final String STATUS_JSON_PATH = "$.status";
+  private static final String ADMIN_USERNAME = "admin";
+  private static final String ADMIN_PASSWORD = "admin-pass";
+  private static final String USER_USERNAME = "user";
+  private static final String USER_PASSWORD = "user-pass";
 
   private final MockMvc mockMvc;
   private final ObjectMapper objectMapper;
@@ -45,6 +51,7 @@ class RestApiControllerIT extends ITBase {
     mockMvc
         .perform(
             post(PLAYERS_API)
+                .with(adminBasicAuth())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"nickname":"ApiPlayerOne"}
@@ -78,6 +85,7 @@ class RestApiControllerIT extends ITBase {
     mockMvc
         .perform(
             post(PLAYERS_API)
+                .with(adminBasicAuth())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"nickname":""}
@@ -97,6 +105,7 @@ class RestApiControllerIT extends ITBase {
         mockMvc
             .perform(
                 post(MATCHES_API)
+                    .with(adminBasicAuth())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         """
@@ -108,7 +117,8 @@ class RestApiControllerIT extends ITBase {
             .andExpect(jsonPath("$.loserName").value("ApiLoser"))
             .andReturn();
 
-    MatchResponse match = objectMapper.readValue(result.getResponse().getContentAsString(), MatchResponse.class);
+    MatchResponse match =
+        objectMapper.readValue(result.getResponse().getContentAsString(), MatchResponse.class);
 
     mockMvc
         .perform(get(MATCHES_API).param("playerId", String.valueOf(winnerId)))
@@ -116,7 +126,9 @@ class RestApiControllerIT extends ITBase {
         .andExpect(jsonPath("$.content.length()").value(1))
         .andExpect(jsonPath("$.content[0].winnerName").value("ApiWinner"));
 
-    mockMvc.perform(delete(MATCHES_API + "/" + match.matchId())).andExpect(status().isNoContent());
+    mockMvc
+        .perform(delete(MATCHES_API + "/" + match.matchId()).with(adminBasicAuth()))
+        .andExpect(status().isNoContent());
 
     mockMvc
         .perform(get(MATCHES_API).param("playerId", String.valueOf(winnerId)))
@@ -131,6 +143,7 @@ class RestApiControllerIT extends ITBase {
     mockMvc
         .perform(
             post(MATCHES_API)
+                .with(adminBasicAuth())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
@@ -150,6 +163,7 @@ class RestApiControllerIT extends ITBase {
         mockMvc
             .perform(
                 post(TOURNAMENTS_API)
+                    .with(adminBasicAuth())
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         """
@@ -169,23 +183,28 @@ class RestApiControllerIT extends ITBase {
             .andReturn();
 
     TournamentResponse createdTournament =
-        objectMapper.readValue(createResult.getResponse().getContentAsString(), TournamentResponse.class);
+        objectMapper.readValue(
+            createResult.getResponse().getContentAsString(), TournamentResponse.class);
 
     MvcResult startResult =
         mockMvc
-            .perform(post(TOURNAMENTS_API + "/" + createdTournament.tournamentId() + "/start"))
+            .perform(
+                post(TOURNAMENTS_API + "/" + createdTournament.tournamentId() + "/start")
+                    .with(adminBasicAuth()))
             .andExpect(status().isOk())
             .andExpect(jsonPath(STATUS_JSON_PATH).value("ACTIVE"))
             .andExpect(jsonPath("$.matches.length()").value(1))
             .andReturn();
 
     TournamentResponse startedTournament =
-        objectMapper.readValue(startResult.getResponse().getContentAsString(), TournamentResponse.class);
+        objectMapper.readValue(
+            startResult.getResponse().getContentAsString(), TournamentResponse.class);
     Long tournamentMatchId = startedTournament.matches().get(0).tournamentMatchId();
 
     mockMvc
         .perform(
             post(TOURNAMENTS_API + "/matches/" + tournamentMatchId + "/result")
+                .with(adminBasicAuth())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"winnerId":%d}
@@ -194,7 +213,6 @@ class RestApiControllerIT extends ITBase {
         .andExpect(jsonPath(STATUS_JSON_PATH).value(TournamentStatus.COMPLETED.name()))
         .andExpect(jsonPath("$.winnerNickname").value("ApiSeedOne"));
   }
-
 
   @Test
   void tournamentsApi_withMissingTournament_ShouldReturnNotFound() throws Exception {
@@ -221,12 +239,14 @@ class RestApiControllerIT extends ITBase {
                 .bracketType(BracketType.SINGLE_ELIMINATION)
                 .playerIds(List.of(firstPlayerId, secondPlayerId))
                 .build());
-    TournamentResponse startedTournament = tournamentService.startTournament(tournament.tournamentId());
+    TournamentResponse startedTournament =
+        tournamentService.startTournament(tournament.tournamentId());
     Long tournamentMatchId = startedTournament.matches().get(0).tournamentMatchId();
 
     mockMvc
         .perform(
             post(TOURNAMENTS_API + "/matches/" + tournamentMatchId + "/result")
+                .with(adminBasicAuth())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"winnerId":%d}
@@ -235,7 +255,38 @@ class RestApiControllerIT extends ITBase {
         .andExpect(jsonPath("$.message", containsString("Winner must be one")));
   }
 
+  @Test
+  void playersApi_withoutCredentials_ShouldRejectWriteRequest() throws Exception {
+    mockMvc
+        .perform(
+            post(PLAYERS_API)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"nickname":"AnonymousApiPlayer"}
+                    """))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void playersApi_withNonAdminUser_ShouldRejectWriteRequest() throws Exception {
+    mockMvc
+        .perform(
+            post(PLAYERS_API)
+                .with(httpBasic(USER_USERNAME, USER_PASSWORD))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"nickname":"RegularUserApiPlayer"}
+                    """))
+        .andExpect(status().isForbidden());
+  }
+
+  private RequestPostProcessor adminBasicAuth() {
+    return httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD);
+  }
+
   private Long createPlayer(String nickname) {
-    return playerService.createPlayer(CreatePlayerRequest.builder().nickname(nickname).build()).playerId();
+    return playerService
+        .createPlayer(CreatePlayerRequest.builder().nickname(nickname).build())
+        .playerId();
   }
 }

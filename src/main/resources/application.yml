@@ -15,6 +15,15 @@ request-filter:
     enabled: ${REQUEST_HEADER_RESTRICTIONS_ENABLED:true}
     rules: []
 
+app:
+  security:
+    admin:
+      username: ${APP_ADMIN_USERNAME:admin}
+      password: ${APP_ADMIN_PASSWORD:admin-pass}
+    user:
+      username: ${APP_USER_USERNAME:user}
+      password: ${APP_USER_PASSWORD:user-pass}
+
 spring:
   application:
     name: elo_match_tracker
