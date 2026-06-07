@@ -27,6 +27,15 @@ public interface PlayerRepository extends JpaRepository<Player, Long> {
                   """)
   Page<Player> findAllByRating(Pageable pageable);
 
+  @Query(
+      """
+                  SELECT p
+                  FROM Player p
+                  WHERE LOWER(p.nickname) LIKE LOWER(CONCAT('%', :query, '%'))
+                  ORDER BY p.eloRating DESC, p.playerId ASC
+                  """)
+  Page<Player> searchByNickname(@Param("query") String query, Pageable pageable);
+
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query(
       """

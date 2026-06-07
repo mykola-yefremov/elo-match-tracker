@@ -2,6 +2,7 @@ package com.emt.configuration;
 
 import com.emt.model.api.ApiErrorResponse;
 import com.emt.model.exception.IdenticalPlayersException;
+import com.emt.model.exception.InvalidMatchScoreException;
 import com.emt.model.exception.MatchNotFoundException;
 import com.emt.model.exception.PlayerAlreadyExistsException;
 import com.emt.model.exception.PlayerNotFoundException;
@@ -45,6 +46,7 @@ public class RestApiExceptionHandler {
 
   @ExceptionHandler({
     IdenticalPlayersException.class,
+    InvalidMatchScoreException.class,
     PlayerAlreadyExistsException.class,
     TournamentCreationException.class
   })

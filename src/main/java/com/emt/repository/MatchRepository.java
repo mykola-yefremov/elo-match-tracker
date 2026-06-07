@@ -3,6 +3,7 @@ package com.emt.repository;
 import com.emt.entity.Match;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,6 +13,16 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface MatchRepository extends JpaRepository<Match, Long> {
+
+  @Query(
+      """
+                  SELECT m
+                  FROM Match m
+                  JOIN FETCH m.winner
+                  JOIN FETCH m.loser
+                  WHERE m.matchId = :matchId
+                  """)
+  Optional<Match> findByIdWithPlayers(@Param("matchId") Long matchId);
 
   @Query(
       """
@@ -95,4 +106,8 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
       @Param("createdAt") Instant createdAt,
       @Param("winnerId") Long winnerId,
       @Param("loserId") Long loserId);
+
+  int countByWinner_PlayerId(Long playerId);
+
+  int countByLoser_PlayerId(Long playerId);
 }
