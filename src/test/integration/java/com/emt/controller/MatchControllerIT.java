@@ -1,8 +1,11 @@
 package com.emt.controller;
 
+import static com.emt.security.SecurityRoles.ADMIN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -19,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 @RequiredArgsConstructor
 public class MatchControllerIT extends ITBase {
@@ -26,10 +30,13 @@ public class MatchControllerIT extends ITBase {
   private static final String MATCH_HISTORY_PATH = "/matches";
   private static final String MATCH_HISTORY_VIEW = "match-history";
   private static final String MATCHES_ATTRIBUTE = "matches";
+  private static final String MATCH_CANCEL_PATH = "/matches/cancel";
+  private static final String MATCH_REPORT_PATH = "/matches/report";
   private static final String OPPONENT_ID_PARAM = "opponentId";
   private static final String PLAYER_ID_PARAM = "playerId";
   private static final String SELECTED_OPPONENT_ID_ATTRIBUTE = "selectedOpponentId";
   private static final String SELECTED_PLAYER_ID_ATTRIBUTE = "selectedPlayerId";
+  private static final String ADMIN_USERNAME = "admin";
 
   private final MockMvc mockMvc;
   private final PlayerService playerService;
@@ -42,6 +49,7 @@ public class MatchControllerIT extends ITBase {
         .andExpect(status().isOk())
         .andExpect(view().name(MATCH_HISTORY_VIEW))
         .andExpect(model().attributeExists(MATCHES_ATTRIBUTE))
+        .andExpect(model().attributeExists("matchPage"))
         .andExpect(model().attributeExists("players"))
         .andExpect(model().attribute(MATCHES_ATTRIBUTE, List.of()));
   }
@@ -52,12 +60,9 @@ public class MatchControllerIT extends ITBase {
     PlayerResponse alice = createPlayer("AliceOne");
     PlayerResponse bob = createPlayer("BobTwo");
     PlayerResponse carol = createPlayer("CarolThree");
-    MatchResponse aliceVsBob =
-        matchService.createMatch(new CreateMatchRequest(alice.playerId(), bob.playerId()));
-    MatchResponse carolVsAlice =
-        matchService.createMatch(new CreateMatchRequest(carol.playerId(), alice.playerId()));
-    MatchResponse bobVsCarol =
-        matchService.createMatch(new CreateMatchRequest(bob.playerId(), carol.playerId()));
+    MatchResponse aliceVsBob = createMatch(alice, bob);
+    MatchResponse carolVsAlice = createMatch(carol, alice);
+    MatchResponse bobVsCarol = createMatch(bob, carol);
 
     MvcResult result =
         mockMvc
@@ -83,9 +88,8 @@ public class MatchControllerIT extends ITBase {
     PlayerResponse alice = createPlayer("PairAlice");
     PlayerResponse bob = createPlayer("PairBob");
     PlayerResponse carol = createPlayer("PairCarol");
-    MatchResponse aliceVsBob =
-        matchService.createMatch(new CreateMatchRequest(alice.playerId(), bob.playerId()));
-    matchService.createMatch(new CreateMatchRequest(carol.playerId(), alice.playerId()));
+    MatchResponse aliceVsBob = createMatch(alice, bob);
+    createMatch(carol, alice);
 
     MvcResult result =
         mockMvc
@@ -130,12 +134,44 @@ public class MatchControllerIT extends ITBase {
 
     mockMvc
         .perform(
-            post("/matches/report")
+            adminPost(MATCH_REPORT_PATH)
                 .param("winnerId", String.valueOf(winner.playerId()))
-                .param("loserId", String.valueOf(loser.playerId())))
+                .param("loserId", String.valueOf(loser.playerId()))
+                .param("winnerScore", "11")
+                .param("loserScore", "7")
+                .param("note", "Clean opening game"))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrl("/players"))
         .andExpect(flash().attribute("message", "Match reported successfully!"));
+
+    MatchResponse match = matchService.getAllMatches().get(0);
+    assertThat(match.winnerScore()).isEqualTo(11);
+    assertThat(match.loserScore()).isEqualTo(7);
+    assertThat(match.note()).isEqualTo("Clean opening game");
+  }
+
+  @Test
+  void getMatchDetail_withExistingMatch_expectDetailPage() throws Exception {
+    PlayerResponse winner =
+        playerService.createPlayer(CreatePlayerRequest.builder().nickname("detail-winner").build());
+    PlayerResponse loser =
+        playerService.createPlayer(CreatePlayerRequest.builder().nickname("detail-loser").build());
+    MatchResponse match =
+        matchService.createMatch(
+            CreateMatchRequest.builder()
+                .winnerId(winner.playerId())
+                .loserId(loser.playerId())
+                .winnerScore(21)
+                .loserScore(18)
+                .note("Close finish")
+                .build());
+
+    mockMvc
+        .perform(get(MATCH_HISTORY_PATH + "/" + match.matchId()))
+        .andExpectAll(
+            status().isOk(),
+            view().name("match-detail"),
+            model().attributeExists("match"));
   }
 
   @Test
@@ -149,7 +185,7 @@ public class MatchControllerIT extends ITBase {
 
     mockMvc
         .perform(
-            post("/matches/report")
+            adminPost(MATCH_REPORT_PATH)
                 .param("winnerId", String.valueOf(player.playerId()))
                 .param("loserId", String.valueOf(player.playerId())))
         .andExpect(status().is3xxRedirection())
@@ -170,7 +206,7 @@ public class MatchControllerIT extends ITBase {
 
     mockMvc
         .perform(
-            post("/matches/report")
+            adminPost(MATCH_REPORT_PATH)
                 .param("winnerId", String.valueOf(winner.playerId()))
                 .param("loserId", String.valueOf(loser.playerId())))
         .andExpect(redirectedUrl("/players"));
@@ -179,7 +215,7 @@ public class MatchControllerIT extends ITBase {
     Long matchId = matches.get(0).matchId();
 
     mockMvc
-        .perform(post("/matches/cancel").param("matchId", String.valueOf(matchId)))
+        .perform(adminPost(MATCH_CANCEL_PATH).param("matchId", String.valueOf(matchId)))
         .andExpect(redirectedUrl(MATCH_HISTORY_PATH))
         .andExpect(flash().attribute("message", "Match cancelled successfully!"));
 
@@ -189,5 +225,14 @@ public class MatchControllerIT extends ITBase {
 
   private PlayerResponse createPlayer(String nickname) {
     return playerService.createPlayer(CreatePlayerRequest.builder().nickname(nickname).build());
+  }
+
+  private MatchResponse createMatch(PlayerResponse winner, PlayerResponse loser) {
+    return matchService.createMatch(
+        CreateMatchRequest.builder().winnerId(winner.playerId()).loserId(loser.playerId()).build());
+  }
+
+  private MockHttpServletRequestBuilder adminPost(String path) {
+    return post(path).with(user(ADMIN_USERNAME).roles(ADMIN)).with(csrf());
   }
 }

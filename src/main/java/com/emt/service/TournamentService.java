@@ -6,6 +6,7 @@ import com.emt.entity.TournamentMatch;
 import com.emt.mapper.TournamentMapper;
 import com.emt.metrics.BusinessMetrics;
 import com.emt.model.exception.TournamentCreationException;
+import com.emt.model.exception.TournamentNotFoundException;
 import com.emt.model.request.CreateMatchRequest;
 import com.emt.model.request.CreateTournamentRequest;
 import com.emt.model.response.TournamentResponse;
@@ -24,6 +25,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +51,14 @@ public class TournamentService {
     return tournamentRepository.findAllWithParticipants().stream()
         .map(tournamentMapper::mapToResponse)
         .toList();
+  }
+
+  @Transactional(readOnly = true)
+  public Page<TournamentResponse> getTournaments(Pageable pageable) {
+    List<TournamentResponse> tournaments = getAllTournaments();
+    int fromIndex = Math.min((int) pageable.getOffset(), tournaments.size());
+    int toIndex = Math.min(fromIndex + pageable.getPageSize(), tournaments.size());
+    return new PageImpl<>(tournaments.subList(fromIndex, toIndex), pageable, tournaments.size());
   }
 
   @Transactional
@@ -113,7 +125,7 @@ public class TournamentService {
   private Tournament getTournamentEntity(Long tournamentId) {
     return tournamentRepository
         .findById(tournamentId)
-        .orElseThrow(() -> new TournamentCreationException("Tournament not found: " + tournamentId));
+        .orElseThrow(() -> new TournamentNotFoundException(tournamentId));
   }
 
   private TournamentMatch getTournamentMatch(Long tournamentMatchId) {

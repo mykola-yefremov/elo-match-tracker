@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <link rel="stylesheet" th:href="@{/styles/styles.css}">
+    <title th:text="${'Match #' + match.matchId}">Match Detail</title>
+</head>
+<body>
+<header th:replace="~{fragments :: siteHeader('matches')}"></header>
+
+<main class="page-shell">
+    <section class="hero">
+        <p class="eyebrow">Match detail</p>
+        <h1 th:text="${match.winnerName + ' defeated ' + match.loserName}">Winner defeated Loser</h1>
+        <p class="hero-copy" th:text="${match.createdAt != null ? #temporals.format(match.createdAt, 'yyyy-MM-dd HH:mm') : 'Date unavailable'}">Date</p>
+    </section>
+
+    <section class="stats-grid">
+        <article class="stat-card">
+            <span>Winner</span>
+            <strong><a th:href="@{/players/{id}(id=${match.winnerId})}" th:text="${match.winnerName}">Winner</a></strong>
+        </article>
+        <article class="stat-card">
+            <span>Loser</span>
+            <strong><a th:href="@{/players/{id}(id=${match.loserId})}" th:text="${match.loserName}">Loser</a></strong>
+        </article>
+        <article class="stat-card">
+            <span>Score</span>
+            <strong th:text="${match.winnerScore != null && match.loserScore != null ? match.winnerScore + '-' + match.loserScore : 'N/A'}">11-8</strong>
+        </article>
+        <article class="stat-card">
+            <span>Elo change</span>
+            <strong th:text="${'+' + match.winnerRatingChange}">+15</strong>
+        </article>
+    </section>
+
+    <section class="panel">
+        <div class="section-title">
+            <h2>Notes</h2>
+            <span th:text="${match.note != null ? 'Recorded' : 'Empty'}">Empty</span>
+        </div>
+        <p class="detail-note" th:text="${match.note != null ? match.note : 'No note was recorded for this match.'}">Note</p>
+    </section>
+</main>
+</body>
+</html>

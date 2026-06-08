@@ -12,6 +12,7 @@ import com.emt.entity.Player;
 import com.emt.mapper.MatchMapper;
 import com.emt.metrics.BusinessMetrics;
 import com.emt.model.exception.IdenticalPlayersException;
+import com.emt.model.exception.InvalidMatchScoreException;
 import com.emt.model.exception.MatchNotFoundException;
 import com.emt.model.request.CreateMatchRequest;
 import com.emt.model.response.MatchResponse;
@@ -131,6 +132,31 @@ class MatchServiceTest {
   }
 
   @Test
+  void createMatch_WhenWinnerScoreIsNotGreater_ShouldThrowException() {
+    assertThatThrownBy(
+            () ->
+                matchService.createMatch(
+                    CreateMatchRequest.builder()
+                        .winnerId(1L)
+                        .loserId(2L)
+                        .winnerScore(9)
+                        .loserScore(11)
+                        .build()))
+        .isInstanceOf(InvalidMatchScoreException.class)
+        .hasMessageContaining("Winner score must be greater than loser score");
+  }
+
+  @Test
+  void createMatch_WhenOnlyOneScoreIsProvided_ShouldThrowException() {
+    assertThatThrownBy(
+            () ->
+                matchService.createMatch(
+                    CreateMatchRequest.builder().winnerId(1L).loserId(2L).winnerScore(11).build()))
+        .isInstanceOf(InvalidMatchScoreException.class)
+        .hasMessageContaining("Provide both winner and loser scores");
+  }
+
+  @Test
   void createMatch_WhenPlayersAreDifferent_ShouldCreateMatchSuccessfully() {
     CreateMatchRequest request = CreateMatchRequest.builder().winnerId(1L).loserId(2L).build();
 
@@ -148,7 +174,7 @@ class MatchServiceTest {
         new MatchResponse(1L, WINNER_NAME, LOSER_NAME, Instant.now(), winnerRatingGain);
 
     given(playerService.getPlayersForRatingUpdate(1L, 2L)).willReturn(List.of(winner, loser));
-    given(matchMapper.mapToEntity(winner, loser, winnerRatingGain)).willReturn(match);
+    given(matchMapper.mapToEntity(winner, loser, winnerRatingGain, request)).willReturn(match);
     given(matchRepository.save(match)).willReturn(match);
     given(matchMapper.mapToResponse(match)).willReturn(expectedResponse);
 

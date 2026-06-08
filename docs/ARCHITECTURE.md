@@ -22,6 +22,24 @@ API responses use dedicated JSON error handling in `RestApiExceptionHandler`.
 MVC errors still use redirects and flash attributes.
 Swagger UI documents the REST controllers, while MVC controllers are hidden from OpenAPI.
 
+Main REST resources:
+
+- `/api/v1/players` for leaderboard search, profiles, and player creation
+- `/api/v1/matches` for match history, match details, reporting, and cancellation
+- `/api/v1/tournaments` for tournament setup, bracket progression, and result reporting
+
+## Security Flow
+
+Spring Security protects write actions while keeping read-only pages easy to browse.
+
+- `GET` pages and read-only REST endpoints are public.
+- MVC write actions require an authenticated `ADMIN` session and CSRF token.
+- REST write actions require `ADMIN` access and can use HTTP Basic authentication.
+- Swagger and health/info actuator endpoints stay public for local discovery and smoke checks.
+
+Local users are configured through `app.security`.
+The default values are intended for development and should be replaced in real deployments.
+
 ## Player Flow
 
 1. `PlayerController` receives the registration form.
@@ -32,10 +50,14 @@ Swagger UI documents the REST controllers, while MVC controllers are hidden from
 
 Players start with a rating of `1200`.
 
+The leaderboard uses repository-level search and pagination, ordered by Elo rating.
+Player profile pages reuse match history to show wins, losses, win rate, recent matches, and rating history.
+Rating history is reconstructed from the initial rating plus stored match Elo deltas.
+
 ## Match Flow
 
-1. `MatchController` receives winner and loser ids.
-2. `MatchService` checks that both ids are different.
+1. `MatchController` receives winner and loser ids, optional score, and optional note.
+2. `MatchService` checks that both ids are different and that a complete score has the winner ahead.
 3. The service loads both players with write locks.
 4. Elo rating changes are calculated.
 5. Both player ratings and the match row are saved in one transaction.
@@ -86,8 +108,9 @@ The audit listener writes a separate `audit_revision` row with entity name, enti
 actor, timestamp, and a JSONB snapshot.
 For matches, player references are stored as ids instead of nested objects to keep snapshots stable.
 
-The actor comes from the configured request header, currently `X-Actor`.
-If the header is missing, the fallback actor is used.
+The actor comes from the authenticated user when one is available.
+If there is no authenticated user, the configured request header is used.
+If neither exists, the fallback actor is used.
 
 ## Request Correlation And Filtering
 
@@ -111,7 +134,7 @@ Important database choices:
 - ratings use `NUMERIC(10, 2)` instead of floating point numbers
 - player rows have a version column for persistence-level concurrency tracking
 - rating updates use pessimistic locks for the affected players
-- match history fields are indexed for filtering and recalculation
+- match history fields are indexed for filtering, profile pages, and recalculation
 - audit revisions are indexed for lookup by entity, operation, and creation time
 - tournament participants have unique constraints for player membership and seed number per tournament
 - tournament matches have unique round and match slots per tournament
@@ -122,6 +145,7 @@ The default profile is for local development.
 
 The `prod` profile disables Swagger UI and keeps actuator exposure limited.
 This is safer for a deployed environment while still allowing local API discovery during development.
+The `prod` profile also requires security credentials from environment variables instead of using local defaults.
 
 ## CI And Build Validation
 

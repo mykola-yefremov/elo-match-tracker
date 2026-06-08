@@ -10,6 +10,7 @@ import com.emt.entity.Player;
 import com.emt.mapper.MatchMapper;
 import com.emt.metrics.BusinessMetrics;
 import com.emt.model.exception.IdenticalPlayersException;
+import com.emt.model.exception.InvalidMatchScoreException;
 import com.emt.model.exception.MatchNotFoundException;
 import com.emt.model.request.CreateMatchRequest;
 import com.emt.model.response.MatchResponse;
@@ -18,6 +19,10 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +46,20 @@ public class MatchService {
     return mapMatches(findMatchesForHistory(playerId, opponentId));
   }
 
+  @Transactional(readOnly = true)
+  public Page<MatchResponse> getMatchHistory(Long playerId, Long opponentId, Pageable pageable) {
+    return findMatchesForHistory(playerId, opponentId, newestFirst(pageable))
+        .map(matchMapper::mapToResponse);
+  }
+
+  @Transactional(readOnly = true)
+  public MatchResponse getMatch(Long matchId) {
+    return matchRepository
+        .findByIdWithPlayers(matchId)
+        .map(matchMapper::mapToResponse)
+        .orElseThrow(() -> new MatchNotFoundException(matchId));
+  }
+
   private List<Match> findMatchesForHistory(Long playerId, Long opponentId) {
     if (playerId == null && opponentId == null) {
       return matchRepository.findAllWithPlayers();
@@ -52,11 +71,23 @@ public class MatchService {
     return matchRepository.findMatchesBetweenPlayers(playerId, opponentId);
   }
 
+  private Page<Match> findMatchesForHistory(Long playerId, Long opponentId, Pageable pageable) {
+    if (playerId == null && opponentId == null) {
+      return matchRepository.findAllWithPlayers(pageable);
+    }
+    if (playerId == null || opponentId == null || playerId.equals(opponentId)) {
+      Long selectedPlayerId = playerId == null ? opponentId : playerId;
+      return matchRepository.findMatchesByPlayer(selectedPlayerId, pageable);
+    }
+    return matchRepository.findMatchesBetweenPlayers(playerId, opponentId, pageable);
+  }
+
   @Transactional
   public MatchResponse createMatch(CreateMatchRequest request) {
     if (request.winnerId().equals(request.loserId())) {
       throw new IdenticalPlayersException("A match cannot be created with identical players.");
     }
+    validateScore(request);
 
     List<Player> players =
         playerService.getPlayersForRatingUpdate(request.winnerId(), request.loserId());
@@ -66,7 +97,7 @@ public class MatchService {
     BigDecimal winnerRatingChange = updateEloRatings(winner, loser);
 
     MatchResponse response =
-        Optional.of(matchMapper.mapToEntity(winner, loser, winnerRatingChange))
+        Optional.of(matchMapper.mapToEntity(winner, loser, winnerRatingChange, request))
             .map(matchRepository::save)
             .map(matchMapper::mapToResponse)
             .orElseThrow();
@@ -140,6 +171,23 @@ public class MatchService {
       match.setWinnerRatingChange(winnerRatingChange);
 
       matchRepository.save(match);
+    }
+  }
+
+  private Pageable newestFirst(Pageable pageable) {
+    return PageRequest.of(
+        pageable.getPageNumber(), pageable.getPageSize(), Sort.by("createdAt").descending());
+  }
+
+  private void validateScore(CreateMatchRequest request) {
+    if ((request.winnerScore() == null) != (request.loserScore() == null)) {
+      throw new InvalidMatchScoreException("Provide both winner and loser scores, or leave both empty.");
+    }
+    if (request.winnerScore() == null || request.loserScore() == null) {
+      return;
+    }
+    if (request.winnerScore() <= request.loserScore()) {
+      throw new InvalidMatchScoreException();
     }
   }
 

@@ -38,7 +38,13 @@ public class MatchRestController {
       @RequestParam(required = false) Long playerId,
       @RequestParam(required = false) Long opponentId,
       @ParameterObject @PageableDefault(size = 20) Pageable pageable) {
-    return ApiPagination.page(matchService.getMatchHistory(playerId, opponentId), pageable);
+    return PageResponse.from(matchService.getMatchHistory(playerId, opponentId, pageable));
+  }
+
+  @GetMapping("/{matchId}")
+  @Operation(summary = "Get match", description = "Returns one match with score, note, and Elo delta.")
+  public MatchResponse getMatch(@PathVariable Long matchId) {
+    return matchService.getMatch(matchId);
   }
 
   @PostMapping

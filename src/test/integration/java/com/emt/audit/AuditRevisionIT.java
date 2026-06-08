@@ -1,6 +1,9 @@
 package com.emt.audit;
 
+import static com.emt.security.SecurityRoles.ADMIN;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -13,12 +16,15 @@ import com.emt.repository.AuditRevisionRepository;
 import com.emt.repository.MatchRepository;
 import com.emt.repository.PlayerRepository;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -61,10 +67,10 @@ class AuditRevisionIT extends ITBase {
   }
 
   @Test
-  void registerPlayer_withActorHeader_shouldStorePlayerInsertRevision() throws Exception {
+  void registerPlayer_withAuthenticatedAdmin_shouldStorePlayerInsertRevision() throws Exception {
     mockMvc
         .perform(
-            post(PLAYER_REGISTER_PATH)
+            adminPost(PLAYER_REGISTER_PATH, "portfolio-reviewer")
                 .header(ACTOR_HEADER, "portfolio-reviewer")
                 .param(NICKNAME_PARAM, "AuditedPlayer"))
         .andExpect(status().is3xxRedirection())
@@ -86,36 +92,34 @@ class AuditRevisionIT extends ITBase {
   }
 
   @Test
-  void registerPlayer_withoutActorHeader_shouldUseFallbackActor() throws Exception {
-    mockMvc
-        .perform(post(PLAYER_REGISTER_PATH).param(NICKNAME_PARAM, "AuditedPlayerNoHeader"))
-        .andExpect(status().is3xxRedirection())
-        .andExpect(redirectedUrl(PLAYERS_PATH));
-
-    Player player = playerRepository.findByNickname("AuditedPlayerNoHeader").orElseThrow();
+  void savePlayer_withoutRequestOrAuthentication_shouldUseFallbackActor() {
+    SecurityContextHolder.clearContext();
+    Player player =
+        playerRepository.saveAndFlush(
+            new Player(null, "AuditedPlayerNoRequest", BigDecimal.valueOf(1200), Instant.now()));
 
     assertThat(latestPlayerRevision(player).getActor())
         .isEqualTo(auditProperties.getFallbackActor());
   }
 
   @Test
-  void registerPlayer_withBlankActorHeader_shouldUseFallbackActor() throws Exception {
+  void registerPlayer_withActorHeaderAndAuthenticatedUser_shouldPreferAuthenticatedUser()
+      throws Exception {
     mockMvc
         .perform(
-            post(PLAYER_REGISTER_PATH)
-                .header(ACTOR_HEADER, "   ")
-                .param(NICKNAME_PARAM, "AuditedPlayerBlankHeader"))
+            adminPost(PLAYER_REGISTER_PATH, "security-user")
+                .header(ACTOR_HEADER, "header-user")
+                .param(NICKNAME_PARAM, "AuditedPlayerSecurityFirst"))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrl(PLAYERS_PATH));
 
-    Player player = playerRepository.findByNickname("AuditedPlayerBlankHeader").orElseThrow();
+    Player player = playerRepository.findByNickname("AuditedPlayerSecurityFirst").orElseThrow();
 
-    assertThat(latestPlayerRevision(player).getActor())
-        .isEqualTo(auditProperties.getFallbackActor());
+    assertThat(latestPlayerRevision(player).getActor()).isEqualTo("security-user");
   }
 
   @Test
-  void reportMatch_withActorHeader_shouldStoreMatchAndRatingRevisions() throws Exception {
+  void reportMatch_withAuthenticatedAdmin_shouldStoreMatchAndRatingRevisions() throws Exception {
     Player winner = createPlayer("AuditWinner", SEED_ACTOR);
     Player loser = createPlayer("AuditLoser", SEED_ACTOR);
     auditRevisionRepository.deleteAll();
@@ -123,7 +127,8 @@ class AuditRevisionIT extends ITBase {
     mockMvc
         .perform(
             post(MATCH_REPORT_PATH)
-                .header(ACTOR_HEADER, "match-reporter")
+                .with(user("match-reporter").roles(ADMIN))
+                .with(csrf())
                 .param(WINNER_ID_PARAM, String.valueOf(winner.getPlayerId()))
                 .param(LOSER_ID_PARAM, String.valueOf(loser.getPlayerId())))
         .andExpect(status().is3xxRedirection())
@@ -166,7 +171,7 @@ class AuditRevisionIT extends ITBase {
   }
 
   @Test
-  void cancelMatch_withActorHeader_shouldStoreDeletedMatchState() throws Exception {
+  void cancelMatch_withAuthenticatedAdmin_shouldStoreDeletedMatchState() throws Exception {
     Player winner = createPlayer("CancelWinner", SEED_ACTOR);
     Player loser = createPlayer("CancelLoser", SEED_ACTOR);
     createMatch(winner, loser, SEED_ACTOR);
@@ -176,7 +181,8 @@ class AuditRevisionIT extends ITBase {
     mockMvc
         .perform(
             post("/matches/cancel")
-                .header(ACTOR_HEADER, "admin-user")
+                .with(user("admin-user").roles(ADMIN))
+                .with(csrf())
                 .param(MATCH_ID_PARAM, String.valueOf(match.getMatchId())))
         .andExpect(status().is3xxRedirection())
         .andExpect(redirectedUrl(MATCHES_PATH));
@@ -196,7 +202,7 @@ class AuditRevisionIT extends ITBase {
   private Player createPlayer(String nickname, String actor) throws Exception {
     mockMvc
         .perform(
-            post(PLAYER_REGISTER_PATH).header(ACTOR_HEADER, actor).param(NICKNAME_PARAM, nickname))
+            adminPost(PLAYER_REGISTER_PATH, actor).param(NICKNAME_PARAM, nickname))
         .andExpect(status().is3xxRedirection());
     return playerRepository.findByNickname(nickname).orElseThrow();
   }
@@ -205,7 +211,8 @@ class AuditRevisionIT extends ITBase {
     mockMvc
         .perform(
             post(MATCH_REPORT_PATH)
-                .header(ACTOR_HEADER, actor)
+                .with(user(actor).roles(ADMIN))
+                .with(csrf())
                 .param(WINNER_ID_PARAM, String.valueOf(winner.getPlayerId()))
                 .param(LOSER_ID_PARAM, String.valueOf(loser.getPlayerId())))
         .andExpect(status().is3xxRedirection());
@@ -238,5 +245,9 @@ class AuditRevisionIT extends ITBase {
         .filter(revision -> stateId(revision, PLAYER_ID_FIELD).equals(player.getPlayerId()))
         .findFirst()
         .orElseThrow();
+  }
+
+  private MockHttpServletRequestBuilder adminPost(String path, String actor) {
+    return post(path).with(user(actor).roles(ADMIN)).with(csrf());
   }
 }

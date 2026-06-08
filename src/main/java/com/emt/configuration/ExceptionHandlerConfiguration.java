@@ -4,6 +4,7 @@ import com.emt.controller.MatchController;
 import com.emt.controller.PlayerController;
 import com.emt.controller.TournamentController;
 import com.emt.model.exception.IdenticalPlayersException;
+import com.emt.model.exception.InvalidMatchScoreException;
 import com.emt.model.exception.MatchNotFoundException;
 import com.emt.model.exception.PlayerAlreadyExistsException;
 import com.emt.model.exception.PlayerNotFoundException;
@@ -51,9 +52,9 @@ public class ExceptionHandlerConfiguration {
     return redirectTargetFor(request);
   }
 
-  @ExceptionHandler(IdenticalPlayersException.class)
+  @ExceptionHandler({IdenticalPlayersException.class, InvalidMatchScoreException.class})
   public String handleIdenticalPlayersException(
-      IdenticalPlayersException ex,
+      RuntimeException ex,
       HttpServletRequest request,
       RedirectAttributes redirectAttributes) {
     redirectAttributes.addFlashAttribute(ERROR_ATTRIBUTE, "Match creation failed: " + ex.getMessage());

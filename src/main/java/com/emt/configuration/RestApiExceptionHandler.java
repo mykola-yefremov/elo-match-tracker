@@ -1,14 +1,13 @@
 package com.emt.configuration;
 
-import com.emt.controller.api.MatchRestController;
-import com.emt.controller.api.PlayerRestController;
-import com.emt.controller.api.TournamentRestController;
 import com.emt.model.api.ApiErrorResponse;
 import com.emt.model.exception.IdenticalPlayersException;
+import com.emt.model.exception.InvalidMatchScoreException;
 import com.emt.model.exception.MatchNotFoundException;
 import com.emt.model.exception.PlayerAlreadyExistsException;
 import com.emt.model.exception.PlayerNotFoundException;
 import com.emt.model.exception.TournamentCreationException;
+import com.emt.model.exception.TournamentNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Clock;
 import java.time.Instant;
@@ -30,12 +29,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 @Slf4j
 @RequiredArgsConstructor
-@RestControllerAdvice(
-    assignableTypes = {
-      PlayerRestController.class,
-      MatchRestController.class,
-      TournamentRestController.class
-    })
+@RestControllerAdvice(basePackages = "com.emt.controller.api")
 public class RestApiExceptionHandler {
 
   private static final String GLOBAL_ERROR_ATTRIBUTE = "global";
@@ -52,6 +46,7 @@ public class RestApiExceptionHandler {
 
   @ExceptionHandler({
     IdenticalPlayersException.class,
+    InvalidMatchScoreException.class,
     PlayerAlreadyExistsException.class,
     TournamentCreationException.class
   })
@@ -60,7 +55,11 @@ public class RestApiExceptionHandler {
     return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request, Map.of());
   }
 
-  @ExceptionHandler({MatchNotFoundException.class, PlayerNotFoundException.class})
+  @ExceptionHandler({
+    MatchNotFoundException.class,
+    PlayerNotFoundException.class,
+    TournamentNotFoundException.class
+  })
   public ResponseEntity<ApiErrorResponse> handleNotFound(RuntimeException ex, HttpServletRequest request) {
     log.warn("api_not_found path={} message={}", request.getRequestURI(), ex.getMessage());
     return errorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request, Map.of());
@@ -69,8 +68,7 @@ public class RestApiExceptionHandler {
   @ExceptionHandler({
     MethodArgumentTypeMismatchException.class,
     MissingServletRequestParameterException.class,
-    PropertyReferenceException.class,
-    IllegalArgumentException.class
+    PropertyReferenceException.class
   })
   public ResponseEntity<ApiErrorResponse> handleInvalidRequest(
       Exception ex, HttpServletRequest request) {

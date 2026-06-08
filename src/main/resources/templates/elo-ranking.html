@@ -1,29 +1,17 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <link rel="stylesheet" th:href="@{/styles/styles.css}">
     <title>Elo Ranking</title>
 </head>
 <body>
-<header class="page-header">
-    <nav class="header-nav">
-        <a class="brand" href="/players">Elo Match Tracker</a>
-        <ul class="header-list">
-            <li class="header-item">
-                <a href="/matches" class="header-link">Match History</a>
-            </li>
-            <li class="header-item">
-                <a href="/tournaments" class="header-link">Tournaments</a>
-            </li>
-        </ul>
-    </nav>
-</header>
+<header th:replace="~{fragments :: siteHeader('players')}"></header>
 
 <main class="page-shell">
     <section class="hero">
         <p class="eyebrow">1v1 ranking system</p>
         <h1>Player leaderboard</h1>
-        <p class="hero-copy">Register players, report match outcomes, and keep Elo ratings in sync.</p>
+        <p class="hero-copy">Search players, open profiles, report scored matches, and keep Elo ratings in sync.</p>
     </section>
 
     <div class="alert alert-error" th:if="${error}">
@@ -41,20 +29,35 @@
     <section class="panel">
         <div class="section-title">
             <h2>Rankings</h2>
-            <span th:text="${#lists.size(players)} + ' players'">0 players</span>
+            <span th:text="${playerPage.totalElements} + ' players'">0 players</span>
         </div>
+        <form class="filter-form" th:action="@{/players}" method="get">
+            <label for="query">Search</label>
+            <input id="query" name="query" type="search" th:value="${query}" placeholder="Nickname">
+            <input type="hidden" name="size" th:value="${playerPage.size}">
+            <button type="submit">Search players</button>
+            <a class="button-link" th:href="@{/players}">Clear</a>
+        </form>
         <ol class="ranking-list">
             <li th:each="player, stat : ${players}" class="ranking-row">
-                <span class="rank" th:text="${stat.count}">1</span>
-                <span class="nickname" th:text="${player.nickname}">nickname</span>
+                <span class="rank" th:text="${playerPage.number * playerPage.size + stat.count}">1</span>
+                <a class="nickname" th:href="@{/players/{id}(id=${player.playerId})}" th:text="${player.nickname}">nickname</a>
                 <span class="rating" th:text="${player.eloRating}">1200</span>
             </li>
         </ol>
+        <div class="pagination" th:if="${playerPage.totalPages > 1}">
+            <a class="button-link" th:if="${!playerPage.first}"
+               th:href="@{/players(page=${playerPage.number - 1},size=${playerPage.size},query=${query})}">Previous</a>
+            <span th:text="${'Page ' + (playerPage.number + 1) + ' of ' + playerPage.totalPages}">Page 1 of 1</span>
+            <a class="button-link" th:if="${!playerPage.last}"
+               th:href="@{/players(page=${playerPage.number + 1},size=${playerPage.size},query=${query})}">Next</a>
+        </div>
     </section>
 
     <section class="form-section panel">
         <h2>Add a New Player</h2>
         <form th:action="@{/players/register}" th:object="${playerRequest}" method="post">
+            <th:block th:replace="~{fragments :: csrfInput}"></th:block>
             <input type="text" th:field="*{nickname}" placeholder="Enter player name" required>
             <button type="submit">Add Player</button>
         </form>
@@ -63,19 +66,29 @@
     <section class="form-section panel">
         <h2>Report Match Outcome</h2>
         <form th:action="@{/matches/report}" th:object="${matchRequest}" method="post">
-            <label for="winner">Winner:</label>
+            <th:block th:replace="~{fragments :: csrfInput}"></th:block>
+            <label for="winner">Winner</label>
             <select th:field="*{winnerId}" id="winner" required>
                 <option value="" disabled selected>Select Winner</option>
                 <option th:each="player : ${players}" th:value="${player.playerId}"
                         th:text="${player.nickname}"></option>
             </select>
 
-            <label for="loser">Loser:</label>
+            <label for="loser">Loser</label>
             <select th:field="*{loserId}" id="loser" required>
                 <option value="" disabled selected>Select Loser</option>
                 <option th:each="player : ${players}" th:value="${player.playerId}"
                         th:text="${player.nickname}"></option>
             </select>
+
+            <label for="winnerScore">Winner score</label>
+            <input id="winnerScore" type="number" th:field="*{winnerScore}" min="0" placeholder="11">
+
+            <label for="loserScore">Loser score</label>
+            <input id="loserScore" type="number" th:field="*{loserScore}" min="0" placeholder="8">
+
+            <label for="note">Note</label>
+            <input id="note" type="text" th:field="*{note}" maxlength="500" placeholder="Optional context">
 
             <button type="submit">Submit Match</button>
         </form>

@@ -1,29 +1,17 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <link rel="stylesheet" th:href="@{/styles/styles.css}">
     <title>Match History</title>
 </head>
 <body>
-<header class="page-header">
-    <nav class="header-nav">
-        <a class="brand" href="/players">Elo Match Tracker</a>
-        <ul class="header-list">
-            <li class="header-item">
-                <a href="/players" class="header-link">Rankings</a>
-            </li>
-            <li class="header-item">
-                <a href="/tournaments" class="header-link">Tournaments</a>
-            </li>
-        </ul>
-    </nav>
-</header>
+<header th:replace="~{fragments :: siteHeader('matches')}"></header>
 
 <main class="page-shell">
     <section class="hero">
         <p class="eyebrow">Audit trail</p>
         <h1>Match history</h1>
-        <p class="hero-copy">Review reported matches and safely cancel entries when a result was recorded by mistake.</p>
+        <p class="hero-copy">Filter match history, open match details, and safely cancel entries recorded by mistake.</p>
     </section>
 
     <div class="alert alert-error" th:if="${error}">
@@ -58,6 +46,7 @@
                         th:text="${player.nickname}">Opponent</option>
             </select>
 
+            <input type="hidden" name="size" th:value="${matchPage.size}">
             <button type="submit">Apply filters</button>
             <a class="button-link" th:href="@{/matches}">Clear</a>
         </form>
@@ -66,7 +55,7 @@
     <section class="panel">
         <div class="section-title">
             <h2>Reported matches</h2>
-            <span th:text="${#lists.size(matches)} + ' matches'">0 matches</span>
+            <span th:text="${matchPage.totalElements} + ' matches'">0 matches</span>
         </div>
         <table>
             <thead>
@@ -74,22 +63,30 @@
                 <th>Date</th>
                 <th>Winner</th>
                 <th>Loser</th>
+                <th>Score</th>
+                <th>Note</th>
                 <th>Action</th>
             </tr>
             </thead>
             <tbody>
             <tr th:each="match : ${matches}">
-                <td th:text="${match.createdAt != null ? #temporals.format(match.createdAt, 'yyyy-MM-dd') : 'N/A'}">Date</td>
                 <td>
-                    <span th:text="${match.winnerName}">Winner</span>
+                    <a th:href="@{/matches/{id}(id=${match.matchId})}"
+                       th:text="${match.createdAt != null ? #temporals.format(match.createdAt, 'yyyy-MM-dd') : 'N/A'}">Date</a>
+                </td>
+                <td>
+                    <a th:href="@{/players/{id}(id=${match.winnerId})}" th:text="${match.winnerName}">Winner</a>
                     <span class="rating-change positive" th:text="'+' + ${match.winnerRatingChange()}">+15.00</span>
                 </td>
                 <td>
-                    <span th:text="${match.loserName}">Loser</span>
+                    <a th:href="@{/players/{id}(id=${match.loserId})}" th:text="${match.loserName}">Loser</a>
                     <span class="rating-change negative" th:text="${-match.winnerRatingChange()}">-15.00</span>
                 </td>
+                <td th:text="${match.winnerScore != null && match.loserScore != null ? match.winnerScore + '-' + match.loserScore : 'N/A'}">11-8</td>
+                <td class="table-note" th:text="${match.note != null ? match.note : '-'}">-</td>
                 <td>
                     <form th:action="@{/matches/cancel}" method="post">
+                        <th:block th:replace="~{fragments :: csrfInput}"></th:block>
                         <input type="hidden" name="matchId" th:value="${match.matchId}"/>
                         <button class="button-secondary" type="submit">Cancel</button>
                     </form>
@@ -97,6 +94,13 @@
             </tr>
             </tbody>
         </table>
+        <div class="pagination" th:if="${matchPage.totalPages > 1}">
+            <a class="button-link" th:if="${!matchPage.first}"
+               th:href="@{/matches(page=${matchPage.number - 1},size=${matchPage.size},playerId=${selectedPlayerId},opponentId=${selectedOpponentId})}">Previous</a>
+            <span th:text="${'Page ' + (matchPage.number + 1) + ' of ' + matchPage.totalPages}">Page 1 of 1</span>
+            <a class="button-link" th:if="${!matchPage.last}"
+               th:href="@{/matches(page=${matchPage.number + 1},size=${matchPage.size},playerId=${selectedPlayerId},opponentId=${selectedOpponentId})}">Next</a>
+        </div>
     </section>
 </main>
 </body>

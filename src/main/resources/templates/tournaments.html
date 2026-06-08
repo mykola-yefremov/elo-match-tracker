@@ -1,26 +1,11 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <link rel="stylesheet" th:href="@{/styles/styles.css}">
     <title>Tournaments</title>
 </head>
 <body>
-<header class="page-header">
-    <nav class="header-nav">
-        <a class="brand" href="/players">Elo Match Tracker</a>
-        <ul class="header-list">
-            <li class="header-item">
-                <a href="/players" class="header-link">Rankings</a>
-            </li>
-            <li class="header-item">
-                <a href="/matches" class="header-link">Match History</a>
-            </li>
-            <li class="header-item">
-                <a href="/tournaments" class="header-link" aria-current="page">Tournaments</a>
-            </li>
-        </ul>
-    </nav>
-</header>
+<header th:replace="~{fragments :: siteHeader('tournaments')}"></header>
 
 <main class="page-shell">
     <section class="hero">
@@ -47,6 +32,7 @@
             <span>Select exactly the configured player count</span>
         </div>
         <form th:action="@{/tournaments}" th:object="${tournamentRequest}" method="post">
+            <th:block th:replace="~{fragments :: csrfInput}"></th:block>
             <input type="text" th:field="*{name}" placeholder="Tournament name" required>
 
             <label for="playerCount">Players</label>
@@ -121,6 +107,7 @@
 
                 <div class="tournament-actions" th:if="${tournament.status.name() == 'DRAFT'}">
                     <form th:action="@{/tournaments/{id}/start(id=${tournament.tournamentId})}" method="post">
+                        <th:block th:replace="~{fragments :: csrfInput}"></th:block>
                         <button type="submit">Start tournament</button>
                     </form>
                 </div>
@@ -154,6 +141,7 @@
                               th:if="${match.status.name() == 'PENDING' && tournament.status.name() == 'ACTIVE'}"
                               th:action="@{/tournaments/matches/{matchId}/report(matchId=${match.tournamentMatchId})}"
                               method="post">
+                            <th:block th:replace="~{fragments :: csrfInput}"></th:block>
                             <button type="submit" name="winnerId" th:value="${match.firstPlayerId}"
                                     th:text="${match.firstPlayerNickname + ' wins'}">First wins</button>
                             <button type="submit" name="winnerId" th:value="${match.secondPlayerId}"
