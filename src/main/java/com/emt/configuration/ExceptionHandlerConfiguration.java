@@ -11,6 +11,7 @@ import com.emt.model.exception.PlayerNotFoundException;
 import com.emt.model.exception.TournamentCreationException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,11 @@ public class ExceptionHandlerConfiguration {
 
   private static final String ERROR_ATTRIBUTE = "error";
   private static final String GLOBAL_ERROR_ATTRIBUTE = "global";
+  private static final List<RedirectRule> REDIRECT_RULES =
+      List.of(
+          new RedirectRule("/matches/report", "redirect:/players", MatchType.EXACT),
+          new RedirectRule("/matches", "redirect:/matches", MatchType.PREFIX),
+          new RedirectRule("/tournaments", "redirect:/tournaments", MatchType.PREFIX));
 
   @ExceptionHandler({BindException.class, MethodArgumentNotValidException.class})
   public String handleValidationException(
@@ -126,16 +132,33 @@ public class ExceptionHandlerConfiguration {
   }
 
   private String redirectTargetFor(HttpServletRequest request) {
-    String uri = request.getRequestURI();
-    if ("/matches/report".equals(uri)) {
-      return "redirect:/players";
+    return REDIRECT_RULES.stream()
+        .filter(rule -> rule.matches(request.getRequestURI()))
+        .map(RedirectRule::target)
+        .findFirst()
+        .orElse("redirect:/players");
+  }
+
+  private enum MatchType {
+    EXACT {
+      @Override
+      boolean matches(String uri, String pattern) {
+        return pattern.equals(uri);
+      }
+    },
+    PREFIX {
+      @Override
+      boolean matches(String uri, String pattern) {
+        return uri != null && uri.startsWith(pattern);
+      }
+    };
+
+    abstract boolean matches(String uri, String pattern);
+  }
+
+  private record RedirectRule(String pattern, String target, MatchType matchType) {
+    private boolean matches(String uri) {
+      return matchType.matches(uri, pattern);
     }
-    if (uri != null && uri.startsWith("/matches")) {
-      return "redirect:/matches";
-    }
-    if (uri != null && uri.startsWith("/tournaments")) {
-      return "redirect:/tournaments";
-    }
-    return "redirect:/players";
   }
 }
