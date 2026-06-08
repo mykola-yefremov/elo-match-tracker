@@ -23,7 +23,10 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -66,10 +69,7 @@ public class TournamentService {
     validateRequest(request);
 
     List<Player> players = new ArrayList<>(selectedPlayers(request.playerIds()));
-    if (request.seedingMode() == SeedingMode.RANDOM) {
-      // Random seeding is intentionally non-deterministic; saved seeds are the source of truth.
-      Collections.shuffle(players);
-    }
+    seedPlayers(players, request.seedingMode());
 
     TournamentResponse response =
         Optional.of(tournamentMapper.mapToEntity(request, players))
@@ -104,7 +104,7 @@ public class TournamentService {
     validateMatchCanBeReported(tournament, tournamentMatch, winnerId);
 
     Player winner = playerInMatch(tournamentMatch, winnerId);
-    Player loser = loserInMatch(tournamentMatch, winnerId);
+    Player loser = opponentInMatch(tournamentMatch, winnerId);
     matchService.createMatch(
         CreateMatchRequest.builder()
             .winnerId(winner.getPlayerId())
@@ -144,47 +144,56 @@ public class TournamentService {
   }
 
   private void validateTournamentCanStart(Tournament tournament) {
-    if (tournament.getStatus() != TournamentStatus.DRAFT) {
-      throw new TournamentCreationException("Only draft tournaments can be started.");
-    }
-    if (!tournament.getMatches().isEmpty()) {
-      throw new TournamentCreationException("Tournament bracket has already been generated.");
-    }
-    if (tournament.getParticipants().size() != tournament.getPlayerCount()) {
-      throw new TournamentCreationException("Tournament roster is incomplete.");
-    }
+    validate(
+        List.of(
+            rule(
+                () -> tournament.getStatus() != TournamentStatus.DRAFT,
+                "Only draft tournaments can be started."),
+            rule(
+                () -> !tournament.getMatches().isEmpty(),
+                "Tournament bracket has already been generated."),
+            rule(
+                () -> tournament.getParticipants().size() != tournament.getPlayerCount(),
+                "Tournament roster is incomplete.")));
   }
 
   private void validateMatchCanBeReported(
       Tournament tournament, TournamentMatch tournamentMatch, Long winnerId) {
-    if (tournament.getStatus() != TournamentStatus.ACTIVE) {
-      throw new TournamentCreationException("Only active tournaments can receive match results.");
-    }
-    if (tournamentMatch.getStatus() != TournamentMatchStatus.PENDING) {
-      throw new TournamentCreationException("Tournament match has already been completed.");
-    }
-    if (!playerBelongsToMatch(tournamentMatch, winnerId)) {
-      throw new TournamentCreationException("Winner must be one of the tournament match players.");
-    }
+    validate(
+        List.of(
+            rule(
+                () -> tournament.getStatus() != TournamentStatus.ACTIVE,
+                "Only active tournaments can receive match results."),
+            rule(
+                () -> tournamentMatch.getStatus() != TournamentMatchStatus.PENDING,
+                "Tournament match has already been completed."),
+            rule(
+                () -> !playerBelongsToMatch(tournamentMatch, winnerId),
+                "Winner must be one of the tournament match players.")));
   }
 
   private boolean playerBelongsToMatch(TournamentMatch tournamentMatch, Long playerId) {
-    return tournamentMatch.getFirstPlayer().getPlayerId().equals(playerId)
-        || tournamentMatch.getSecondPlayer().getPlayerId().equals(playerId);
+    return playerSlots(tournamentMatch).containsKey(playerId);
   }
 
   private Player playerInMatch(TournamentMatch tournamentMatch, Long playerId) {
-    if (tournamentMatch.getFirstPlayer().getPlayerId().equals(playerId)) {
-      return tournamentMatch.getFirstPlayer();
-    }
-    return tournamentMatch.getSecondPlayer();
+    return Optional.ofNullable(playerSlots(tournamentMatch).get(playerId)).orElseThrow();
   }
 
-  private Player loserInMatch(TournamentMatch tournamentMatch, Long winnerId) {
-    if (tournamentMatch.getFirstPlayer().getPlayerId().equals(winnerId)) {
-      return tournamentMatch.getSecondPlayer();
-    }
-    return tournamentMatch.getFirstPlayer();
+  private Player opponentInMatch(TournamentMatch tournamentMatch, Long playerId) {
+    return playerSlots(tournamentMatch).entrySet().stream()
+        .filter(entry -> !entry.getKey().equals(playerId))
+        .map(Map.Entry::getValue)
+        .findFirst()
+        .orElseThrow();
+  }
+
+  private Map<Long, Player> playerSlots(TournamentMatch tournamentMatch) {
+    return Map.of(
+        tournamentMatch.getFirstPlayer().getPlayerId(),
+        tournamentMatch.getFirstPlayer(),
+        tournamentMatch.getSecondPlayer().getPlayerId(),
+        tournamentMatch.getSecondPlayer());
   }
 
   private void completeTournamentMatch(TournamentMatch tournamentMatch, Player winner) {
@@ -199,26 +208,27 @@ public class TournamentService {
   }
 
   private void validateSupportedPlayerCount(Integer playerCount) {
-    if (!SUPPORTED_PLAYER_COUNTS.contains(playerCount)) {
-      throw new TournamentCreationException("Unsupported player count: " + playerCount);
-    }
+    validate(
+        List.of(
+            rule(
+                () -> !SUPPORTED_PLAYER_COUNTS.contains(playerCount),
+                "Unsupported player count: " + playerCount)));
   }
 
   private void validateRoster(List<Long> playerIds, Integer expectedPlayerCount) {
-    if (playerIds == null || playerIds.isEmpty()) {
-      throw new TournamentCreationException("Select players for the tournament.");
-    }
-    if (hasDuplicatePlayerIds(playerIds)) {
-      throw new TournamentCreationException("A player can only be selected once.");
-    }
-    if (playerIds.size() != expectedPlayerCount) {
-      throw new TournamentCreationException(
-          "Expected %s players, got %s.".formatted(expectedPlayerCount, playerIds.size()));
-    }
+    validate(
+        List.of(
+            rule(
+                () -> playerIds == null || playerIds.isEmpty(),
+                "Select players for the tournament."),
+            rule(() -> hasDuplicatePlayerIds(playerIds), "A player can only be selected once."),
+            rule(
+                () -> playerIds != null && playerIds.size() != expectedPlayerCount,
+                () -> "Expected %s players, got %s.".formatted(expectedPlayerCount, playerIds.size()))));
   }
 
   private boolean hasDuplicatePlayerIds(List<Long> playerIds) {
-    return playerIds.stream().distinct().count() != playerIds.size();
+    return playerIds != null && playerIds.stream().distinct().count() != playerIds.size();
   }
 
   private List<Player> selectedPlayers(List<Long> playerIds) {
@@ -231,9 +241,11 @@ public class TournamentService {
   private void validateAllPlayersExist(List<Long> playerIds, List<Player> foundPlayers) {
     List<Long> missingPlayerIds =
         playerIds.stream().filter(playerId -> playerNotFound(foundPlayers, playerId)).toList();
-    if (!missingPlayerIds.isEmpty()) {
-      throw new TournamentCreationException("Players not found with ids: " + missingPlayerIds);
-    }
+    validate(
+        List.of(
+            rule(
+                () -> !missingPlayerIds.isEmpty(),
+                "Players not found with ids: " + missingPlayerIds)));
   }
 
   private boolean playerNotFound(List<Player> players, Long playerId) {
@@ -246,4 +258,30 @@ public class TournamentService {
         .findFirst()
         .orElseThrow();
   }
+
+  private void seedPlayers(List<Player> players, SeedingMode seedingMode) {
+    Optional.ofNullable(seedingMode)
+        .filter(SeedingMode.RANDOM::equals)
+        .ifPresent(mode -> Collections.shuffle(players));
+  }
+
+  private ValidationRule rule(BooleanSupplier failed, String message) {
+    return rule(failed, () -> message);
+  }
+
+  private ValidationRule rule(BooleanSupplier failed, Supplier<String> message) {
+    return new ValidationRule(failed, message);
+  }
+
+  private void validate(List<ValidationRule> rules) {
+    rules.stream()
+        .filter(rule -> rule.failed().getAsBoolean())
+        .findFirst()
+        .ifPresent(
+            rule -> {
+              throw new TournamentCreationException(rule.message().get());
+            });
+  }
+
+  private record ValidationRule(BooleanSupplier failed, Supplier<String> message) {}
 }

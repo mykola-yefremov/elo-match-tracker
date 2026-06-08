@@ -18,6 +18,8 @@ import com.emt.repository.MatchRepository;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -61,25 +63,19 @@ public class MatchService {
   }
 
   private List<Match> findMatchesForHistory(Long playerId, Long opponentId) {
-    if (playerId == null && opponentId == null) {
-      return matchRepository.findAllWithPlayers();
-    }
-    if (playerId == null || opponentId == null || playerId.equals(opponentId)) {
-      Long selectedPlayerId = playerId == null ? opponentId : playerId;
-      return matchRepository.findMatchesByPlayer(selectedPlayerId);
-    }
-    return matchRepository.findMatchesBetweenPlayers(playerId, opponentId);
+    MatchHistoryFilter filter = MatchHistoryFilter.from(playerId, opponentId);
+    return filter.findWith(
+        matchRepository::findAllWithPlayers,
+        matchRepository::findMatchesByPlayer,
+        pair -> matchRepository.findMatchesBetweenPlayers(pair.playerId(), pair.opponentId()));
   }
 
   private Page<Match> findMatchesForHistory(Long playerId, Long opponentId, Pageable pageable) {
-    if (playerId == null && opponentId == null) {
-      return matchRepository.findAllWithPlayers(pageable);
-    }
-    if (playerId == null || opponentId == null || playerId.equals(opponentId)) {
-      Long selectedPlayerId = playerId == null ? opponentId : playerId;
-      return matchRepository.findMatchesByPlayer(selectedPlayerId, pageable);
-    }
-    return matchRepository.findMatchesBetweenPlayers(playerId, opponentId, pageable);
+    MatchHistoryFilter filter = MatchHistoryFilter.from(playerId, opponentId);
+    return filter.findWith(
+        () -> matchRepository.findAllWithPlayers(pageable),
+        selectedPlayerId -> matchRepository.findMatchesByPlayer(selectedPlayerId, pageable),
+        pair -> matchRepository.findMatchesBetweenPlayers(pair.playerId(), pair.opponentId(), pageable));
   }
 
   @Transactional
@@ -180,15 +176,17 @@ public class MatchService {
   }
 
   private void validateScore(CreateMatchRequest request) {
-    if ((request.winnerScore() == null) != (request.loserScore() == null)) {
-      throw new InvalidMatchScoreException("Provide both winner and loser scores, or leave both empty.");
-    }
-    if (request.winnerScore() == null || request.loserScore() == null) {
-      return;
-    }
-    if (request.winnerScore() <= request.loserScore()) {
-      throw new InvalidMatchScoreException();
-    }
+    scoreError(request).ifPresent(
+        message -> {
+          throw new InvalidMatchScoreException(message);
+        });
+  }
+
+  private Optional<String> scoreError(CreateMatchRequest request) {
+    MatchScore score = MatchScore.from(request);
+    return score.isPartial()
+        ? Optional.of("Provide both winner and loser scores, or leave both empty.")
+        : score.invalidWinnerScore();
   }
 
   private List<MatchResponse> mapMatches(List<Match> matches) {
@@ -203,5 +201,74 @@ public class MatchService {
             () ->
                 new IllegalStateException(
                     "Player with id %d not found in locked set".formatted(playerId)));
+  }
+
+  private sealed interface MatchHistoryFilter permits AllMatches, SinglePlayerMatches, PairMatches {
+    static MatchHistoryFilter from(Long playerId, Long opponentId) {
+      return Optional.ofNullable(selectedSinglePlayer(playerId, opponentId))
+          .<MatchHistoryFilter>map(SinglePlayerMatches::new)
+          .orElseGet(
+              () ->
+                  playerId == null && opponentId == null
+                      ? new AllMatches()
+                      : new PairMatches(playerId, opponentId));
+    }
+
+    private static Long selectedSinglePlayer(Long playerId, Long opponentId) {
+      return playerId == null || opponentId == null || playerId.equals(opponentId)
+          ? Optional.ofNullable(playerId).orElse(opponentId)
+          : null;
+    }
+
+    <T> T findWith(
+        Supplier<T> allMatches,
+        Function<Long, T> singlePlayerMatches,
+        Function<PairMatches, T> pairMatches);
+  }
+
+  private record AllMatches() implements MatchHistoryFilter {
+    @Override
+    public <T> T findWith(
+        Supplier<T> allMatches,
+        Function<Long, T> singlePlayerMatches,
+        Function<PairMatches, T> pairMatches) {
+      return allMatches.get();
+    }
+  }
+
+  private record SinglePlayerMatches(Long playerId) implements MatchHistoryFilter {
+    @Override
+    public <T> T findWith(
+        Supplier<T> allMatches,
+        Function<Long, T> singlePlayerMatches,
+        Function<PairMatches, T> pairMatches) {
+      return singlePlayerMatches.apply(playerId);
+    }
+  }
+
+  private record PairMatches(Long playerId, Long opponentId) implements MatchHistoryFilter {
+    @Override
+    public <T> T findWith(
+        Supplier<T> allMatches,
+        Function<Long, T> singlePlayerMatches,
+        Function<PairMatches, T> pairMatches) {
+      return pairMatches.apply(this);
+    }
+  }
+
+  private record MatchScore(Integer winnerScore, Integer loserScore) {
+    private static MatchScore from(CreateMatchRequest request) {
+      return new MatchScore(request.winnerScore(), request.loserScore());
+    }
+
+    private boolean isPartial() {
+      return (winnerScore == null) != (loserScore == null);
+    }
+
+    private Optional<String> invalidWinnerScore() {
+      return winnerScore != null && winnerScore <= loserScore
+          ? Optional.of("Winner score must be greater than loser score when both scores are provided.")
+          : Optional.empty();
+    }
   }
 }
